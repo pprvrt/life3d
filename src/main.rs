@@ -14,22 +14,62 @@ const CYCLE: u32 = 20;
 
 implement_vertex!(Vertex, position, normal, color);
 
+fn get_perspective(target: &impl glium::Surface) -> [[f32; 4]; 4] {
+    let (width, height) = target.get_dimensions();
+    let aspect_ratio = height as f32 / width as f32;
+
+    let fov: f32 = PI / 3.0;
+    let zfar = 1024.0;
+    let znear = 0.1;
+
+    let f = 1.0 / (fov / 2.0).tan();
+
+    [
+        [f * aspect_ratio, 0.0, 0.0, 0.0],
+        [0.0, f, 0.0, 0.0],
+        [0.0, 0.0, (zfar + znear) / (zfar - znear), 1.0],
+        [0.0, 0.0, -(2.0 * zfar * znear) / (zfar - znear), 0.0],
+    ]
+}
+
+fn get_matrix(t: f32) -> [[f32; 4]; 4] {
+    /* https://en.wikipedia.org/wiki/Rotation_matrix
+     * R = Rz*Ry*Rx
+     */
+    [
+        [t.cos() * t.cos(), t.cos() * t.sin(), -t.sin(), 0.0],
+        [
+            t.sin() * t.sin() * t.cos() - t.cos() * t.sin(),
+            t.sin() * t.sin() * t.sin() + t.cos() * t.cos(),
+            t.sin() * t.cos(),
+            0.0,
+        ],
+        [
+            t.cos() * t.sin() * t.cos() + t.sin() * t.sin(),
+            t.cos() * t.sin() * t.sin() - t.sin() * t.cos(),
+            t.cos() * t.cos(),
+            0.0,
+        ],
+        [0.0, 0.0, 25.0, 1.0f32],
+    ]
+}
+
 fn main() {
     use glium::{glutin, Surface};
 
     let event_loop = glutin::event_loop::EventLoop::new();
-    let wb = glutin::window::WindowBuilder::new()
-        .with_title("Conway's game of life");
+    let wb = glutin::window::WindowBuilder::new().with_title("Conway's game of life");
     let cb = glutin::ContextBuilder::new().with_depth_buffer(24);
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
+    // Start with time at 0 
     let mut t: f32 = 0.0;
 
+    // Generate universe
     let mut universe = Universe::new(WIDTH, HEIGHT);
-    //universe.rand();
     universe.rand();
 
-    //let cube = Model::cube();
+    // Load cube model from OBJ
     let cube = Model::from_obj("./resources/cube.obj");
 
     let vertex_buffer = glium::VertexBuffer::new(&display, &cube.vertices).unwrap();
@@ -52,7 +92,7 @@ fn main() {
         let data = (0..WIDTH * HEIGHT)
             .map(|_| Attr {
                 alive: 1.0,
-                tick: PI/2.0,
+                tick: PI / 2.0,
             })
             .collect::<Vec<_>>();
 
@@ -118,8 +158,11 @@ fn main() {
         glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None)
             .unwrap();
 
+    /* Frame counter */
     let mut frame = 0;
-    let _start = std::time::Instant::now();
+    
+    /* Light source */
+    let light = [-1.0, 0.4, -0.9f32];
 
     event_loop.run(move |ev, _, control_flow| {
         match ev {
@@ -134,7 +177,7 @@ fn main() {
                 glutin::event::StartCause::ResumeTimeReached { .. } => (),
                 glutin::event::StartCause::Init => (),
                 _ => return,
-            }
+            },
             _ => return,
         }
 
@@ -155,10 +198,10 @@ fn main() {
                     };
                 }
 
-                if universe.has_changed(id) && attr.tick < PI/2.0 {
-                    attr.tick += PI / (1.5*CYCLE as f32);
-                    if attr.tick > PI/2.0 {
-                        attr.tick = PI/2.0;
+                if universe.has_changed(id) && attr.tick < PI / 2.0 {
+                    attr.tick += PI / (1.5 * CYCLE as f32);
+                    if attr.tick > PI / 2.0 {
+                        attr.tick = PI / 2.0;
                     }
                 }
             }
@@ -168,47 +211,7 @@ fn main() {
 
         let mut target = display.draw();
 
-        let light = [-1.0, 0.4, -0.9f32];
-
-        let perspective = {
-            let (width, height) = target.get_dimensions();
-            let aspect_ratio = height as f32 / width as f32;
-
-            let fov: f32 = PI / 3.0;
-            let zfar = 1024.0;
-            let znear = 0.1;
-
-            let f = 1.0 / (fov / 2.0).tan();
-
-            [
-                [f * aspect_ratio, 0.0, 0.0, 0.0],
-                [0.0, f, 0.0, 0.0],
-                [0.0, 0.0, (zfar + znear) / (zfar - znear), 1.0],
-                [0.0, 0.0, -(2.0 * zfar * znear) / (zfar - znear), 0.0],
-            ]
-        };
-
         target.clear_color_and_depth((0.0, 0.0, 0.4, 0.8), 1.0);
-
-        /* https://en.wikipedia.org/wiki/Rotation_matrix
-         * R = Rz*Ry*Rx
-         */
-        let matrix = [
-            [t.cos() * t.cos(), t.cos() * t.sin(), -t.sin(), 0.0],
-            [
-                t.sin() * t.sin() * t.cos() - t.cos() * t.sin(),
-                t.sin() * t.sin() * t.sin() + t.cos() * t.cos(),
-                t.sin() * t.cos(),
-                0.0,
-            ],
-            [
-                t.cos() * t.sin() * t.cos() + t.sin() * t.sin(),
-                t.cos() * t.sin() * t.sin() - t.sin() * t.cos(),
-                t.cos() * t.cos(),
-                0.0,
-            ],
-            [0.0, 0.0, 25.0, 1.0f32],
-        ];
 
         target
             .draw(
@@ -216,11 +219,11 @@ fn main() {
                 &index_buffer,
                 &program,
                 &uniform! { scaling: cube.scaling,
-                    matrix: matrix,
-                    perspective: perspective,
-                    light: light,
-                    height: HEIGHT as i32,
-                    width: WIDTH as i32},
+                matrix: get_matrix(t),
+                perspective: get_perspective(&target),
+                light: light,
+                height: HEIGHT as i32,
+                width: WIDTH as i32},
                 &params,
             )
             .unwrap();

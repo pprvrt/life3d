@@ -108,7 +108,7 @@ impl Universe {
         }
         self.cells = cells;
     }
-    
+
     pub fn new(width: usize, height: usize) -> Universe {
         Universe {
             width,

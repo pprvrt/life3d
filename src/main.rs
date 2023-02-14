@@ -64,7 +64,7 @@ fn main() {
     let cb = glutin::ContextBuilder::new().with_depth_buffer(24);
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
-    // Start with time at 0 
+    // Start with time at 0
     let mut t: f32 = 0.0;
 
     // Generate universe
@@ -176,6 +176,7 @@ fn main() {
             write: true,
             ..Default::default()
         },
+        smooth: Some(glium::draw_parameters::Smooth::Fastest),
         blend: glium::draw_parameters::Blend::alpha_blending(),
         ..Default::default()
     };
@@ -186,7 +187,7 @@ fn main() {
 
     /* Frame counter */
     let mut frame = 0;
-    
+
     /* Light source */
     let light = [-1.0, 0.4, -0.9f32];
 
@@ -224,8 +225,8 @@ fn main() {
                     };
                 }
 
-                if universe.has_changed(id) && attr.tick < PI / 2.0 {
-                    attr.tick += 1.0/LIFECYCLE as f32;
+                if universe.has_changed(id) {
+                    attr.tick += 1.0 / LIFECYCLE as f32;
                 }
             }
         }

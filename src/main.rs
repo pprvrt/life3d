@@ -135,13 +135,15 @@ fn main() {
             ? 9.075 * t2 - 9.9 * t + 3.4
             : t < c
               ? ca * t2 - cb * t + cc
-              : 10.8 * t * t - 20.52 * t + 10.72;
+              : t > 1.0
+                ? 1.0
+                : 10.8 * t * t - 20.52 * t + 10.72;
     }
 
 
     vec4 grid = vec4(float(mod(gl_InstanceID,width)) - float(width)/2.0, float(gl_InstanceID/width) - float(height)/2.0, 0, 0);
     
-    float wobble = alive*bounceOut(tick) + (1.0-alive)*(1-smoothstep(0.0,0.5,tick));
+    float wobble = alive*bounceOut(tick*1.2) + (1.0-alive)*(1-smoothstep(0.0,0.5,tick));
 
     void main() {
         /* Transform normal vector with transformation matrix */

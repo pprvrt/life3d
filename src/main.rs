@@ -165,7 +165,6 @@ fn main() {
         t = (t + PI / 45.0) % (PI * 2.0);
 
         let mut target = display.draw();
-        target.clear_color_and_depth((0.0, 0.0, 0.4, 1.0), 1.0);
 
         let light = [-1.0, 0.4, -0.9f32];
 
@@ -187,7 +186,7 @@ fn main() {
             ]
         };
 
-        target.clear_color_and_depth((0.0, 0.0, 0.4, 0.5), 1.0);
+        target.clear_color_and_depth((0.0, 0.0, 0.4, 0.8), 1.0);
 
         /* https://en.wikipedia.org/wiki/Rotation_matrix
          * R = Rz*Ry*Rx
@@ -227,7 +226,7 @@ fn main() {
         frame += 1;
         if frame % CYCLE == 0 {
             universe.step();
-            //println!("fps: {}", frame as f32/start.elapsed().as_secs() as f32);
+            println!("fps: {}", frame as f32/start.elapsed().as_secs() as f32);
         }
     });
 }

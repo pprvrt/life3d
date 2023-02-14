@@ -117,7 +117,7 @@ fn main() {
             .unwrap();
 
     let mut frame = 0;
-    let start = std::time::Instant::now();
+    let _start = std::time::Instant::now();
 
     event_loop.run(move |ev, _, control_flow| {
         match ev {
@@ -144,16 +144,16 @@ fn main() {
             let mut mapping = per_instance.map();
             for (id, attr) in (0..WIDTH * HEIGHT).zip(mapping.iter_mut()) {
                 if frame % CYCLE == 0 {
-                    attr.alive = match universe.is_alive(id as usize) {
+                    attr.alive = match universe.is_alive(id) {
                         true => 1.0,
                         false => 0.0,
                     };
-                    if universe.has_changed(id as usize) {
+                    if universe.has_changed(id) {
                         attr.tick = 0.0
                     };
                 }
 
-                if universe.has_changed(id as usize) && attr.tick < PI/2.0 {
+                if universe.has_changed(id) && attr.tick < PI/2.0 {
                     attr.tick += PI / (1.5*CYCLE as f32);
                     if attr.tick > PI/2.0 {
                         attr.tick = PI/2.0;
@@ -226,7 +226,6 @@ fn main() {
         frame += 1;
         if frame % CYCLE == 0 {
             universe.step();
-            println!("fps: {}", frame as f32/start.elapsed().as_secs() as f32);
         }
     });
 }

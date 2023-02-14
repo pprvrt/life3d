@@ -21,7 +21,7 @@ pub struct Universe {
 
 impl fmt::Display for Universe {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for line in self.cells.chunks(self.width as usize) {
+        for line in self.cells.chunks(self.width) {
             for &cell in line {
                 match cell.state {
                     CellState::Alive => write!(f, "◼")?,
@@ -36,7 +36,7 @@ impl fmt::Display for Universe {
 
 impl Universe {
     fn index(&self, cx: usize, cy: usize) -> usize {
-        (cy * self.width + cx) as usize
+        cy * self.width + cx
     }
 
     pub fn is_alive(&self, index: usize) -> bool {
@@ -103,17 +103,12 @@ impl Universe {
             };
             cells.push(Cell {
                 state,
-                changed: cell.state != state
+                changed: cell.state != state,
             })
         }
         self.cells = cells;
     }
-
-    pub fn one(&mut self) {
-        self.cells[(self.height/2)*self.width + self.width/2].state = CellState::Alive;
-        self.cells[(self.height/2)*self.width + self.width/2].changed = true;
-    }
-
+    
     pub fn new(width: usize, height: usize) -> Universe {
         Universe {
             width,
@@ -123,7 +118,7 @@ impl Universe {
                     state: CellState::Dead,
                     changed: true
                 };
-                (width * height) as usize
+                width * height
             ],
         }
     }

@@ -10,7 +10,7 @@ use universe::Universe;
 
 const WIDTH: u32 = 80;
 const HEIGHT: u32 = 40;
-const CYCLE: u32 = 5;
+const CYCLE: u32 = 10;
 
 implement_vertex!(Vertex, position, normal, color);
 
@@ -75,7 +75,7 @@ fn main() {
 
     vec3 computed = vec3(float(mod(gl_InstanceID,80)) - 80.0/2.0, float(gl_InstanceID/80) - 40/2.0, 0);
     
-    float wobble = (alive*sin(tick)+(1.0-alive)*cos(tick));
+    float wobble = alive*sin(tick) + (1.0-alive)*cos(tick);
 
     void main() {
         vnormal = transpose(inverse(mat3(matrix))) * normal;
@@ -141,24 +141,21 @@ fn main() {
             std::time::Instant::now() + std::time::Duration::from_nanos(16_666_667);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
 
-        if frame % CYCLE == 0 {
-            //println!("fps: {}", frame as f32*1000.0/start.elapsed().as_millis() as f32);
-            universe.step();
-            let mut mapping = per_instance.map();
-            for (id, attr) in (0..WIDTH * HEIGHT).zip(mapping.iter_mut()) {
-                attr.alive = match universe.is_alive(id as usize) {
-                    true => 1.0,
-                    false => 0.0,
-                };
-                if universe.has_changed(id as usize) {
-                    attr.tick = 0.0
-                };
-            }
-        }
 
+        if frame % CYCLE == 0 { universe.step(); println!("fps: {}", frame as f32/start.elapsed().as_secs() as f32); }
         {
             let mut mapping = per_instance.map();
             for (id, attr) in (0..WIDTH * HEIGHT).zip(mapping.iter_mut()) {
+                if frame % CYCLE == 0 {
+                    attr.alive = match universe.is_alive(id as usize) {
+                        true => 1.0,
+                        false => 0.0,
+                    };
+                    if universe.has_changed(id as usize) {
+                        attr.tick = 0.0
+                    };
+                }
+
                 if universe.has_changed(id as usize) && attr.tick < PI/2.0 {
                     attr.tick += PI / (CYCLE as f32 * 1.5);
                 }

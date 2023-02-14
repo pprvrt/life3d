@@ -11,7 +11,7 @@ pub struct Vertex {
 pub struct Model {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
-    pub scaling: f32
+    pub scaling: f32,
 }
 
 impl Model {
@@ -20,7 +20,7 @@ impl Model {
         let mut max_pos = [f32::NEG_INFINITY; 3];
 
         let (models, _) = tobj::load_obj(
-            &obj_file,
+            obj_file,
             &tobj::LoadOptions {
                 triangulate: true,
                 single_index: true,
@@ -75,9 +75,13 @@ impl Model {
         let current_len = f32::powf(max_pos[0] - min_pos[0], 2.0)
             + f32::powf(max_pos[1] - min_pos[1], 2.0)
             + f32::powf(max_pos[2] - min_pos[2], 2.0);
-        let scaling = 2.0/f32::sqrt(diagonal_len / current_len);
+        let scaling = 2.0 / f32::sqrt(diagonal_len / current_len);
 
-        Model { vertices, indices, scaling }
+        Model {
+            vertices,
+            indices,
+            scaling,
+        }
     }
 
     pub fn cube() -> Model {
@@ -135,7 +139,7 @@ impl Model {
                 0, 1, 2, 1, 2, 3, 0, 2, 4, 4, 2, 6, 4, 5, 6, 5, 6, 7, 1, 5, 3, 5, 3, 7, 6, 7, 2, 7,
                 2, 3, 4, 5, 0, 5, 0, 1,
             ],
-            scaling: 1.0
+            scaling: 1.0,
         }
     }
 }

@@ -8,8 +8,8 @@ use model::{Model, Vertex};
 use std::f32::consts::PI;
 use universe::Universe;
 
-const WIDTH: u32 = 80;
-const HEIGHT: u32 = 40;
+const WIDTH: usize = 80;
+const HEIGHT: usize = 40;
 const CYCLE: u32 = 20;
 
 implement_vertex!(Vertex, position, normal, color);
@@ -26,6 +26,7 @@ fn main() {
     let mut t: f32 = 0.0;
 
     let mut universe = Universe::new(WIDTH, HEIGHT);
+    //universe.rand();
     universe.rand();
 
     //let cube = Model::cube();
@@ -51,7 +52,7 @@ fn main() {
         let data = (0..WIDTH * HEIGHT)
             .map(|_| Attr {
                 alive: 1.0,
-                tick: 0.0,
+                tick: PI/2.0,
             })
             .collect::<Vec<_>>();
 
@@ -139,12 +140,6 @@ fn main() {
             std::time::Instant::now() + std::time::Duration::from_nanos(16_666_667);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
 
-
-        if frame % CYCLE == 0 {
-            universe.step();
-            //println!("fps: {}", frame as f32/start.elapsed().as_secs() as f32);
-        }
-
         {
             let mut mapping = per_instance.map();
             for (id, attr) in (0..WIDTH * HEIGHT).zip(mapping.iter_mut()) {
@@ -159,7 +154,7 @@ fn main() {
                 }
 
                 if universe.has_changed(id as usize) && attr.tick < PI/2.0 {
-                    attr.tick += PI / (2.0 * CYCLE as f32);
+                    attr.tick += PI / (1.5*CYCLE as f32);
                     if attr.tick > PI/2.0 {
                         attr.tick = PI/2.0;
                     }
@@ -223,12 +218,16 @@ fn main() {
                     matrix: matrix,
                     perspective: perspective,
                     light: light,
-                    height: HEIGHT,
-                    width: WIDTH },
+                    height: HEIGHT as u32,
+                    width: WIDTH as u32},
                 &params,
             )
             .unwrap();
         target.finish().unwrap();
         frame += 1;
+        if frame % CYCLE == 0 {
+            universe.step();
+            //println!("fps: {}", frame as f32/start.elapsed().as_secs() as f32);
+        }
     });
 }

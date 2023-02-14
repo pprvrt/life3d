@@ -14,8 +14,8 @@ pub struct Cell {
 }
 
 pub struct Universe {
-    pub width: u32,
-    pub height: u32,
+    pub width: usize,
+    pub height: usize,
     pub cells: Vec<Cell>,
 }
 
@@ -35,7 +35,7 @@ impl fmt::Display for Universe {
 }
 
 impl Universe {
-    fn index(&self, cx: u32, cy: u32) -> usize {
+    fn index(&self, cx: usize, cy: usize) -> usize {
         (cy * self.width + cx) as usize
     }
 
@@ -75,7 +75,7 @@ impl Universe {
         self.cells = next
     }
 
-    fn neighbours(&self, x: u32, y: u32) -> u8 {
+    fn neighbours(&self, x: usize, y: usize) -> u8 {
         let mut count: u8 = 0;
         for nx in [self.width - 1, 0, 1] {
             for ny in [self.height - 1, 0, 1] {
@@ -109,14 +109,19 @@ impl Universe {
         self.cells = cells;
     }
 
-    pub fn new(width: u32, height: u32) -> Universe {
+    pub fn one(&mut self) {
+        self.cells[(self.height/2)*self.width + self.width/2].state = CellState::Alive;
+        self.cells[(self.height/2)*self.width + self.width/2].changed = true;
+    }
+
+    pub fn new(width: usize, height: usize) -> Universe {
         Universe {
             width,
             height,
             cells: vec![
                 Cell {
                     state: CellState::Dead,
-                    changed: false
+                    changed: true
                 };
                 (width * height) as usize
             ],

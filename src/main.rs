@@ -8,9 +8,11 @@ use model::{Model, Vertex};
 use std::f32::consts::PI;
 use universe::Universe;
 
+// Width and height of Conway's universe
 const WIDTH: usize = 60;
 const HEIGHT: usize = 60;
-const CYCLE: u32 = 20;
+// Number of cycles before a new generation
+const LIFECYCLE: u32 = 40;
 
 implement_vertex!(Vertex, position, normal, color);
 
@@ -92,7 +94,7 @@ fn main() {
         let data = (0..WIDTH * HEIGHT)
             .map(|_| Attr {
                 alive: 1.0,
-                tick: PI / 2.0,
+                tick: 1.0,
             })
             .collect::<Vec<_>>();
 
@@ -115,9 +117,31 @@ fn main() {
     uniform int width;
     uniform int height;
 
+    /* https://github.com/glslify/glsl-easings/blob/master/bounce-out.glsl */
+    float bounceOut(float t) {
+        const float a = 4.0 / 11.0;
+        const float b = 8.0 / 11.0;
+        const float c = 9.0 / 10.0;
+      
+        const float ca = 4356.0 / 361.0;
+        const float cb = 35442.0 / 1805.0;
+        const float cc = 16061.0 / 1805.0;
+      
+        float t2 = t * t;
+      
+        return t < a
+          ? 7.5625 * t2
+          : t < b
+            ? 9.075 * t2 - 9.9 * t + 3.4
+            : t < c
+              ? ca * t2 - cb * t + cc
+              : 10.8 * t * t - 20.52 * t + 10.72;
+    }
+
+
     vec4 grid = vec4(float(mod(gl_InstanceID,width)) - float(width)/2.0, float(gl_InstanceID/width) - float(height)/2.0, 0, 0);
     
-    float wobble = alive*sin(tick) + (1.0-alive)*cos(tick);
+    float wobble = alive*bounceOut(tick) + (1.0-alive)*(1-smoothstep(0.0,0.5,tick));
 
     void main() {
         /* Transform normal vector with transformation matrix */
@@ -135,11 +159,11 @@ fn main() {
     
     uniform vec3 light;
     
+    /* Simple Gouraud shading */
     void main() {
         float brightness = dot(normalize(vnormal), normalize(light));
         vec3 dark = vec3(0.5, 0.5, 0.5);
         vec3 light = vec3(1.0, 1.0, 1.0);
-        
         color = vec4(mix(dark, light, brightness), 1.0);
     }
     "#;
@@ -188,7 +212,7 @@ fn main() {
         {
             let mut mapping = per_instance.map();
             for (id, attr) in (0..WIDTH * HEIGHT).zip(mapping.iter_mut()) {
-                if frame % CYCLE == 0 {
+                if frame % LIFECYCLE == 0 {
                     attr.alive = match universe.is_alive(id) {
                         true => 1.0,
                         false => 0.0,
@@ -199,10 +223,7 @@ fn main() {
                 }
 
                 if universe.has_changed(id) && attr.tick < PI / 2.0 {
-                    attr.tick += PI / (1.5 * CYCLE as f32);
-                    if attr.tick > PI / 2.0 {
-                        attr.tick = PI / 2.0;
-                    }
+                    attr.tick += 1.0/LIFECYCLE as f32;
                 }
             }
         }
@@ -229,7 +250,7 @@ fn main() {
             .unwrap();
         target.finish().unwrap();
         frame += 1;
-        if frame % CYCLE == 0 {
+        if frame % LIFECYCLE == 0 {
             universe.step();
         }
     });

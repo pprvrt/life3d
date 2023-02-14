@@ -10,7 +10,7 @@ use universe::Universe;
 
 const WIDTH: u32 = 80;
 const HEIGHT: u32 = 40;
-const CYCLE: u32 = 10;
+const CYCLE: u32 = 20;
 
 implement_vertex!(Vertex, position, normal, color);
 
@@ -79,7 +79,7 @@ fn main() {
 
     void main() {
         vnormal = transpose(inverse(mat3(matrix))) * normal;
-        vec4 new_position = matrix * vec4(position*wobble, scaling);
+        vec4 new_position = matrix * vec4(position*wobble*scaling, 1);
         gl_Position = perspective * vec4(computed.x + new_position.x, computed.y + new_position.y, computed.z + new_position.z, new_position.w);
     }
     "#;
@@ -135,14 +135,16 @@ fn main() {
             _ => return,
         }
 
-        frame += 1;
-
         let next_frame_time =
             std::time::Instant::now() + std::time::Duration::from_nanos(16_666_667);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
 
 
-        if frame % CYCLE == 0 { universe.step(); println!("fps: {}", frame as f32/start.elapsed().as_secs() as f32); }
+        if frame % CYCLE == 0 {
+            universe.step();
+            //println!("fps: {}", frame as f32/start.elapsed().as_secs() as f32);
+        }
+
         {
             let mut mapping = per_instance.map();
             for (id, attr) in (0..WIDTH * HEIGHT).zip(mapping.iter_mut()) {
@@ -157,7 +159,7 @@ fn main() {
                 }
 
                 if universe.has_changed(id as usize) && attr.tick < PI/2.0 {
-                    attr.tick += PI / (CYCLE as f32 * 1.5);
+                    attr.tick += PI / (2.0 * CYCLE as f32);
                 }
                 if attr.tick > PI/2.0 {
                     attr.tick = PI/2.0;
@@ -165,7 +167,7 @@ fn main() {
             }
         }
 
-        t = (t + PI / 50.0) % (PI * 2.0);
+        t = (t + PI / 45.0) % (PI * 2.0);
 
         let mut target = display.draw();
         target.clear_color_and_depth((0.0, 0.0, 0.4, 1.0), 1.0);
@@ -177,7 +179,7 @@ fn main() {
             let aspect_ratio = height as f32 / width as f32;
 
             let fov: f32 = PI / 3.0;
-            let zfar = 50.0;
+            let zfar = 1024.0;
             let znear = 0.1;
 
             let f = 1.0 / (fov / 2.0).tan();
@@ -209,7 +211,7 @@ fn main() {
                 t.cos() * t.cos(),
                 0.0,
             ],
-            [0.0, 0.0, 30.0, 1.0f32],
+            [0.0, 0.0, 25.0, 1.0f32],
         ];
 
         target
@@ -227,5 +229,6 @@ fn main() {
             )
             .unwrap();
         target.finish().unwrap();
+        frame += 1;
     });
 }

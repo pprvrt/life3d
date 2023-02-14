@@ -71,11 +71,11 @@ impl Model {
                 }
             }
         }
-        let diagonal_len = 6.0;
+        let diagonal_len = 3.0;
         let current_len = f32::powf(max_pos[0] - min_pos[0], 2.0)
             + f32::powf(max_pos[1] - min_pos[1], 2.0)
             + f32::powf(max_pos[2] - min_pos[2], 2.0);
-        let scaling = 2.0 / f32::sqrt(diagonal_len / current_len);
+        let scaling = f32::sqrt(diagonal_len / current_len);
 
         Model {
             vertices,

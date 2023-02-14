@@ -68,7 +68,7 @@ impl Universe {
 
                 next[idx] = Cell {
                     state: cellstate,
-                    changed: actual.state != cellstate
+                    changed: actual.state != cellstate,
                 };
             }
         }
@@ -92,16 +92,20 @@ impl Universe {
 
     pub fn rand(&mut self) {
         let mut rng = rand::thread_rng();
-        let cells = (0..self.width * self.height)
-            .map(|_| Cell {
-                state: if rng.gen_bool(0.5) {
-                    CellState::Alive
-                } else {
-                    CellState::Dead
-                },
-                changed: true,
+        let mut cells: Vec<Cell> = Vec::new();
+
+        for (_, cell) in (0..self.width * self.height).zip(self.cells.iter_mut()) {
+            let is_alive = rng.gen_bool(0.5);
+            let state = if is_alive {
+                CellState::Alive
+            } else {
+                CellState::Dead
+            };
+            cells.push(Cell {
+                state,
+                changed: cell.state != state
             })
-            .collect();
+        }
         self.cells = cells;
     }
 
@@ -112,7 +116,7 @@ impl Universe {
             cells: vec![
                 Cell {
                     state: CellState::Dead,
-                    changed: true
+                    changed: false
                 };
                 (width * height) as usize
             ],

@@ -116,7 +116,7 @@ fn main() {
             .unwrap();
 
     let mut frame = 0;
-    let mut start = std::time::Instant::now();
+    let start = std::time::Instant::now();
 
     event_loop.run(move |ev, _, control_flow| {
         match ev {
@@ -160,9 +160,9 @@ fn main() {
 
                 if universe.has_changed(id as usize) && attr.tick < PI/2.0 {
                     attr.tick += PI / (2.0 * CYCLE as f32);
-                }
-                if attr.tick > PI/2.0 {
-                    attr.tick = PI/2.0;
+                    if attr.tick > PI/2.0 {
+                        attr.tick = PI/2.0;
+                    }
                 }
             }
         }

@@ -52,12 +52,13 @@ fn get_matrix(t: f32) -> [[f32; 4]; 4] {
             t.cos() * t.cos(),
             0.0,
         ],
-        [0.0, 0.0, 25.0, 1.0f32],
+        [0.0, 0.0, 20.0, 1.0f32],
     ]
 }
 
 fn main() {
     use glium::{glutin, Surface};
+    use glutin::event;
 
     let event_loop = glutin::event_loop::EventLoop::new();
     let wb = glutin::window::WindowBuilder::new().with_title("Conway's game of life");
@@ -110,6 +111,8 @@ fn main() {
     in float tick;
     
     out vec3 vnormal;
+    out vec3 lightc;
+    out vec3 darkc;
     
     uniform mat4 perspective;
     uniform mat4 matrix;
@@ -142,10 +145,15 @@ fn main() {
 
 
     vec4 grid = vec4(float(mod(gl_InstanceID,width)) - float(width)/2.0, float(gl_InstanceID/width) - float(height)/2.0, 0, 0);
-    
+    vec3 dark = vec3(1.0, 1.0, 1.0);
+    vec3 light = vec3(0.5, 0.5, 0.5);
+
+
     float wobble = alive*bounceOut(tick*1.2) + (1.0-alive)*(1-smoothstep(0.0,0.5,tick));
 
     void main() {
+        lightc = mix(alive*vec3(0.0, 1.0, 0.0) + (1.0-alive)*vec3(1.0, 0.0, 0.0), light, tick);
+        darkc = mix(alive*vec3(0.0, 0.6, 0.0) + (1.0-alive)*vec3(0.6, 0.0, 0.0), dark, tick);
         /* Transform normal vector with transformation matrix */
         vnormal = transpose(inverse(mat3(matrix))) * normal;
         vec4 origin = matrix * vec4(position * wobble * scaling, 1);
@@ -156,6 +164,8 @@ fn main() {
     let fragment_shader_src = r#"
     #version 150
     
+    in vec3 lightc;
+    in vec3 darkc;
     in vec3 vnormal;
     out vec4 color;
     
@@ -164,9 +174,7 @@ fn main() {
     /* Simple Gouraud shading */
     void main() {
         float brightness = dot(normalize(vnormal), normalize(light));
-        vec3 dark = vec3(0.5, 0.5, 0.5);
-        vec3 light = vec3(1.0, 1.0, 1.0);
-        color = vec4(mix(dark, light, brightness), 1.0);
+        color = vec4(mix(darkc, lightc, brightness), 1.0);
     }
     "#;
 
@@ -191,18 +199,31 @@ fn main() {
     /* Light source */
     let light = [-1.0, 0.4, -0.9f32];
 
+    let mut randomize = false;
+
     event_loop.run(move |ev, _, control_flow| {
         match ev {
-            glutin::event::Event::WindowEvent {
-                event: glutin::event::WindowEvent::CloseRequested,
-                ..
-            } => {
-                *control_flow = glutin::event_loop::ControlFlow::Exit;
-                return;
-            }
-            glutin::event::Event::NewEvents(cause) => match cause {
-                glutin::event::StartCause::ResumeTimeReached { .. } => (),
-                glutin::event::StartCause::Init => (),
+            event::Event::WindowEvent { event, .. } => match event {
+                event::WindowEvent::CloseRequested => {
+                    *control_flow = glutin::event_loop::ControlFlow::Exit;
+                    return;
+                }
+                event::WindowEvent::KeyboardInput {
+                    input:
+                        event::KeyboardInput {
+                            virtual_keycode: Some(event::VirtualKeyCode::Space),
+                            state: event::ElementState::Pressed,
+                            ..
+                        },
+                    ..
+                } => {
+                    randomize = true;
+                }
+                _ => return,
+            },
+            event::Event::NewEvents(cause) => match cause {
+                event::StartCause::ResumeTimeReached { .. } => (),
+                event::StartCause::Init => (),
                 _ => return,
             },
             _ => return,
@@ -254,7 +275,13 @@ fn main() {
         target.finish().unwrap();
         frame += 1;
         if frame % LIFECYCLE == 0 {
-            universe.step();
+            if randomize {
+                universe.rand();
+                randomize = false;
+            } 
+            else {
+                universe.step();
+            }
         }
     });
 }

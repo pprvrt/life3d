@@ -76,6 +76,7 @@ fn main() {
     let cube = Model::from_obj("./resources/cube.obj");
 
     let vertex_buffer = glium::VertexBuffer::new(&display, &cube.vertices).unwrap();
+
     let index_buffer = glium::IndexBuffer::new(
         &display,
         glium::index::PrimitiveType::TrianglesList,

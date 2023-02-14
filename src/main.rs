@@ -152,8 +152,8 @@ fn main() {
     float wobble = alive*bounceOut(tick*1.2) + (1.0-alive)*(1-smoothstep(0.0,0.5,tick));
 
     void main() {
-        lightc = mix(alive*vec3(0.0, 1.0, 0.0) + (1.0-alive)*vec3(1.0, 0.0, 0.0), light, tick);
-        darkc = mix(alive*vec3(0.0, 0.6, 0.0) + (1.0-alive)*vec3(0.6, 0.0, 0.0), dark, tick);
+        lightc = mix(alive*vec3(0.0, 0.6, 0.0) + (1.0-alive)*vec3(0.6, 0.0, 0.0), light, tick);
+        darkc = mix(alive*vec3(0.0, 0.3, 0.0) + (1.0-alive)*vec3(0.3, 0.0, 0.0), dark, tick);
         /* Transform normal vector with transformation matrix */
         vnormal = transpose(inverse(mat3(matrix))) * normal;
         vec4 origin = matrix * vec4(position * wobble * scaling, 1);

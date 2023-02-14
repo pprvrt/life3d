@@ -8,8 +8,8 @@ use model::{Model, Vertex};
 use std::f32::consts::PI;
 use universe::Universe;
 
-const WIDTH: usize = 80;
-const HEIGHT: usize = 40;
+const WIDTH: usize = 60;
+const HEIGHT: usize = 60;
 const CYCLE: u32 = 20;
 
 implement_vertex!(Vertex, position, normal, color);
@@ -72,16 +72,18 @@ fn main() {
     uniform mat4 perspective;
     uniform mat4 matrix;
     uniform float scaling;
-    uniform uint width;
+    uniform int width;
+    uniform int height;
 
-    vec3 computed = vec3(float(mod(gl_InstanceID,80)) - 80.0/2.0, float(gl_InstanceID/80) - 40/2.0, 0);
+    vec4 grid = vec4(float(mod(gl_InstanceID,width)) - float(width)/2.0, float(gl_InstanceID/width) - float(height)/2.0, 0, 0);
     
     float wobble = alive*sin(tick) + (1.0-alive)*cos(tick);
 
     void main() {
+        /* Transform normal vector with transformation matrix */
         vnormal = transpose(inverse(mat3(matrix))) * normal;
-        vec4 new_position = matrix * vec4(position*wobble*scaling, 1);
-        gl_Position = perspective * vec4(computed.x + new_position.x, computed.y + new_position.y, computed.z + new_position.z, new_position.w);
+        vec4 origin = matrix * vec4(position * wobble * scaling, 1);
+        gl_Position = perspective * (grid + origin);
     }
     "#;
 
@@ -95,10 +97,10 @@ fn main() {
     
     void main() {
         float brightness = dot(normalize(vnormal), normalize(light));
-        vec3 dark_color = vec3(0.5, 0.5, 0.5);
-        vec3 light_color = vec3(1.0, 1.0, 1.0);
+        vec3 dark = vec3(0.5, 0.5, 0.5);
+        vec3 light = vec3(1.0, 1.0, 1.0);
         
-        color = vec4(mix(dark_color, light_color, brightness), 1.0);
+        color = vec4(mix(dark, light, brightness), 1.0);
     }
     "#;
 
@@ -217,8 +219,8 @@ fn main() {
                     matrix: matrix,
                     perspective: perspective,
                     light: light,
-                    height: HEIGHT as u32,
-                    width: WIDTH as u32},
+                    height: HEIGHT as i32,
+                    width: WIDTH as i32},
                 &params,
             )
             .unwrap();

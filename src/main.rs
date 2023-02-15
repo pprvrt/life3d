@@ -112,8 +112,8 @@ fn main() {
     in float tick;
     
     out vec3 vnormal;
-    out vec3 lightc;
-    out vec3 darkc;
+    out float valive;
+    out float vtick;
     
     uniform mat4 perspective;
     uniform mat4 matrix;
@@ -144,17 +144,13 @@ fn main() {
                 : 10.8 * t * t - 20.52 * t + 10.72;
     }
 
-
     vec4 grid = vec4(float(mod(gl_InstanceID,width)) - float(width)/2.0, float(gl_InstanceID/width) - float(height)/2.0, 0, 0);
-    vec3 dark = vec3(1.0, 1.0, 1.0);
-    vec3 light = vec3(0.5, 0.5, 0.5);
-
 
     float wobble = alive*bounceOut(tick*1.2) + (1.0-alive)*(1-smoothstep(0.0,0.5,tick));
 
     void main() {
-        lightc = mix(alive*vec3(0.0, 0.6, 0.0) + (1.0-alive)*vec3(0.6, 0.0, 0.0), light, tick);
-        darkc = mix(alive*vec3(0.0, 0.3, 0.0) + (1.0-alive)*vec3(0.3, 0.0, 0.0), dark, tick);
+        valive = alive;
+        vtick = tick;
         /* Transform normal vector with transformation matrix */
         vnormal = transpose(inverse(mat3(matrix))) * normal;
         vec4 origin = matrix * vec4(position * wobble * scaling, 1);
@@ -165,15 +161,20 @@ fn main() {
     let fragment_shader_src = r#"
     #version 150
     
-    in vec3 lightc;
-    in vec3 darkc;
+    in float valive;
+    in float vtick;
     in vec3 vnormal;
     out vec4 color;
+
+    vec3 white = vec3(1.0, 1.0, 1.0);
+    vec3 black = vec3(0.5, 0.5, 0.5);
     
     uniform vec3 light;
     
     /* Simple Gouraud shading */
     void main() {
+        vec3 lightc = mix(valive*vec3(0.0, 0.6, 0.0) + (1.0-valive)*vec3(0.6, 0.0, 0.0), white, vtick);
+        vec3 darkc = mix(valive*vec3(0.0, 0.3, 0.0) + (1.0-valive)*vec3(0.3, 0.0, 0.0), black, vtick);
         float brightness = dot(normalize(vnormal), normalize(light));
         color = vec4(mix(darkc, lightc, brightness), 1.0);
     }
@@ -202,6 +203,7 @@ fn main() {
 
     let mut randomize = false;
 
+    let start = std::time::Instant::now();
     event_loop.run(move |ev, _, control_flow| {
         match ev {
             event::Event::WindowEvent { event, .. } => match event {
@@ -282,6 +284,7 @@ fn main() {
             } 
             else {
                 universe.step();
+                println!("fps: {}", frame as f32/start.elapsed().as_secs() as f32)
             }
         }
     });

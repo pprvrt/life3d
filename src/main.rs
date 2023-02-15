@@ -203,7 +203,7 @@ fn main() {
 
     let mut randomize = false;
 
-    let start = std::time::Instant::now();
+    let mut start = std::time::Instant::now();
     event_loop.run(move |ev, _, control_flow| {
         match ev {
             event::Event::WindowEvent { event, .. } => match event {
@@ -284,7 +284,8 @@ fn main() {
             } 
             else {
                 universe.step();
-                println!("fps: {}", frame as f32/start.elapsed().as_secs() as f32)
+                println!("fps: {:.2}", 1000.0*LIFECYCLE as f32/start.elapsed().as_millis() as f32);
+                start = std::time::Instant::now();
             }
         }
     });

@@ -173,8 +173,8 @@ fn main() {
     
     /* Simple Gouraud shading */
     void main() {
-        vec3 lightc = mix(valive*vec3(0.0, 0.6, 0.0) + (1.0-valive)*vec3(0.6, 0.0, 0.0), white, vtick);
-        vec3 darkc = mix(valive*vec3(0.0, 0.3, 0.0) + (1.0-valive)*vec3(0.3, 0.0, 0.0), black, vtick);
+        vec3 lightc = valive*mix(vec3(0.0, 0.6, 0.0), white, vtick/1.3) + (1.0-valive)*mix(white, vec3(0.6, 0.0, 0.0), vtick*2.5);
+        vec3 darkc = valive*mix(vec3(0.0, 0.3, 0.0), black, vtick/1.3) + (1.0-valive)*mix(black, vec3(0.3, 0.0, 0.0), vtick*2.5);
         float brightness = dot(normalize(vnormal), normalize(light));
         color = vec4(mix(darkc, lightc, brightness), 1.0);
     }

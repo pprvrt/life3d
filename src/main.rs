@@ -16,7 +16,7 @@ const LIFECYCLE: u32 = 40;
 
 implement_vertex!(Vertex, position, normal, color);
 
-fn get_perspective(target: &impl glium::Surface) -> [[f32; 4]; 4] {
+fn perspective_matrix(target: &impl glium::Surface) -> [[f32; 4]; 4] {
     let (width, height) = target.get_dimensions();
     let aspect_ratio = height as f32 / width as f32;
 
@@ -34,7 +34,7 @@ fn get_perspective(target: &impl glium::Surface) -> [[f32; 4]; 4] {
     ]
 }
 
-fn get_matrix(t: f32) -> [[f32; 4]; 4] {
+fn model_matrix(t: f32) -> [[f32; 4]; 4] {
     /* https://en.wikipedia.org/wiki/Rotation_matrix
      * R = Rz*Ry*Rx
      */
@@ -52,7 +52,41 @@ fn get_matrix(t: f32) -> [[f32; 4]; 4] {
             t.cos() * t.cos(),
             0.0,
         ],
-        [0.0, 0.0, 20.0, 1.0f32],
+        [0.0, 0.0, 0.0, 1.0f32],
+    ]
+}
+
+fn camera_matrix(position: &[f32; 3], direction: &[f32; 3], up: &[f32; 3]) -> [[f32; 4]; 4] {
+    let f = {
+        let f = direction;
+        let len = f[0] * f[0] + f[1] * f[1] + f[2] * f[2];
+        let len = len.sqrt();
+        [f[0] / len, f[1] / len, f[2] / len]
+    };
+
+    let s = [up[1] * f[2] - up[2] * f[1],
+             up[2] * f[0] - up[0] * f[2],
+             up[0] * f[1] - up[1] * f[0]];
+
+    let s_norm = {
+        let len = s[0] * s[0] + s[1] * s[1] + s[2] * s[2];
+        let len = len.sqrt();
+        [s[0] / len, s[1] / len, s[2] / len]
+    };
+
+    let u = [f[1] * s_norm[2] - f[2] * s_norm[1],
+             f[2] * s_norm[0] - f[0] * s_norm[2],
+             f[0] * s_norm[1] - f[1] * s_norm[0]];
+
+    let p = [-position[0] * s_norm[0] - position[1] * s_norm[1] - position[2] * s_norm[2],
+             -position[0] * u[0] - position[1] * u[1] - position[2] * u[2],
+             -position[0] * f[0] - position[1] * f[1] - position[2] * f[2]];
+
+    [
+        [s_norm[0], u[0], f[0], 0.0],
+        [s_norm[1], u[1], f[1], 0.0],
+        [s_norm[2], u[2], f[2], 0.0],
+        [p[0], p[1], p[2], 1.0],
     ]
 }
 
@@ -115,8 +149,9 @@ fn main() {
     out float valive;
     out float vtick;
     
-    uniform mat4 perspective;
-    uniform mat4 matrix;
+    uniform mat4 camera_matrix;
+    uniform mat4 perspective_matrix;
+    uniform mat4 model_matrix;
     uniform float scaling;
     uniform int width;
     uniform int height;
@@ -144,17 +179,21 @@ fn main() {
                 : 10.8 * t * t - 20.52 * t + 10.72;
     }
 
-    vec4 grid = vec4(float(mod(gl_InstanceID,width)) - float(width)/2.0, float(gl_InstanceID/width) - float(height)/2.0, 0, 0);
+    vec4 instance = vec4(float(mod(gl_InstanceID,width)) - float(width)/2.0,
+        float(gl_InstanceID/width) - float(height)/2.0, 0, 0);
 
     float wobble = alive*bounceOut(tick*1.2) + (1.0-alive)*(1-smoothstep(0.0,0.5,tick));
 
     void main() {
         valive = alive;
         vtick = tick;
-        /* Transform normal vector with transformation matrix */
-        vnormal = transpose(inverse(mat3(matrix))) * normal;
-        vec4 origin = matrix * vec4(position * wobble * scaling, 1);
-        gl_Position = perspective * (grid + origin);
+
+        /* Transform normal vector with model transformation matrix */
+        vnormal = transpose(inverse(mat3(model_matrix))) * normal;
+        /* Transform the instance according to its scaling factor, and the wobble birth&death effect */
+        vec4 origin = model_matrix * vec4(position * wobble * scaling, 1);
+        /* Move the instance on the grid, apply camera transformation and perspective transformation */
+        gl_Position = perspective_matrix * camera_matrix * (instance + origin);
     }
     "#;
 
@@ -173,8 +212,8 @@ fn main() {
     
     /* Simple Gouraud shading */
     void main() {
-        vec3 lightc = valive*mix(vec3(0.0, 0.6, 0.0), white, vtick/1.3) + (1.0-valive)*mix(white, vec3(0.6, 0.0, 0.0), vtick*2.5);
-        vec3 darkc = valive*mix(vec3(0.0, 0.3, 0.0), black, vtick/1.3) + (1.0-valive)*mix(black, vec3(0.3, 0.0, 0.0), vtick*2.5);
+        vec3 lightc = valive*mix(vec3(0.0, 0.6, 0.0), white, vtick) + (1.0-valive)*mix(white, vec3(0.6, 0.0, 0.0), vtick*2.5);
+        vec3 darkc = valive*mix(vec3(0.0, 0.3, 0.0), black, vtick) + (1.0-valive)*mix(black, vec3(0.3, 0.0, 0.0), vtick*2.5);
         float brightness = dot(normalize(vnormal), normalize(light));
         color = vec4(mix(darkc, lightc, brightness), 1.0);
     }
@@ -201,7 +240,11 @@ fn main() {
     /* Light source */
     let light = [-1.0, 0.4, -0.9f32];
 
+    /* Camera */
+    let camera = camera_matrix(&[0.0, 0.0, -15.0], &[0.0, 0.6, 1.0], &[0.0, 1.0, 0.0]);
+
     let mut randomize = false;
+    let mut stop = false;
 
     let mut start = std::time::Instant::now();
     event_loop.run(move |ev, _, control_flow| {
@@ -211,16 +254,20 @@ fn main() {
                     *control_flow = glutin::event_loop::ControlFlow::Exit;
                     return;
                 }
-                event::WindowEvent::KeyboardInput {
-                    input:
+                event::WindowEvent::KeyboardInput { input, ..} => {
+                    match input {
                         event::KeyboardInput {
                             virtual_keycode: Some(event::VirtualKeyCode::Space),
                             state: event::ElementState::Pressed,
                             ..
-                        },
-                    ..
-                } => {
-                    randomize = true;
+                        } => { randomize = true; }
+                        event::KeyboardInput {
+                            virtual_keycode: Some(event::VirtualKeyCode::S),
+                            state: event::ElementState::Pressed,
+                            ..
+                        } => { stop = !stop; }
+                        _ => ()
+                    }
                 }
                 _ => return,
             },
@@ -239,7 +286,7 @@ fn main() {
         {
             let mut mapping = per_instance.map();
             for (id, attr) in (0..WIDTH * HEIGHT).zip(mapping.iter_mut()) {
-                if frame % LIFECYCLE == 0 {
+                if !stop && frame % LIFECYCLE == 0 {
                     attr.alive = match universe.is_alive(id) {
                         true => 1.0,
                         false => 0.0,
@@ -249,7 +296,7 @@ fn main() {
                     };
                 }
 
-                if universe.has_changed(id) {
+                if universe.has_changed(id) && attr.tick < 1.0 {
                     attr.tick += 1.0 / LIFECYCLE as f32;
                 }
             }
@@ -267,8 +314,9 @@ fn main() {
                 &index_buffer,
                 &program,
                 &uniform! { scaling: cube.scaling,
-                matrix: get_matrix(t),
-                perspective: get_perspective(&target),
+                model_matrix: model_matrix(t),
+                camera_matrix: camera,
+                perspective_matrix: perspective_matrix(&target),
                 light: light,
                 height: HEIGHT as i32,
                 width: WIDTH as i32},
@@ -283,7 +331,7 @@ fn main() {
                 randomize = false;
             } 
             else {
-                universe.step();
+                if !stop { universe.step(); }
                 println!("fps: {:.2}", 1000.0*LIFECYCLE as f32/start.elapsed().as_millis() as f32);
                 start = std::time::Instant::now();
             }

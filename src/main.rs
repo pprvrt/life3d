@@ -145,16 +145,20 @@ fn main() {
     in float alive;
     in float tick;
     
-    out vec3 vnormal;
-    out float valive;
-    out float vtick;
+    out vec3 v_normal;
+    out vec3 v_position;
+    out float v_alive;
+    out float v_tick;
     
-    uniform mat4 camera_matrix;
-    uniform mat4 perspective_matrix;
-    uniform mat4 model_matrix;
-    uniform float scaling;
-    uniform int width;
-    uniform int height;
+    uniform mat4 u_camera;
+    uniform mat4 u_perspective;
+    uniform mat4 u_model;
+    uniform float u_scaling;
+    uniform int u_width;
+    uniform int u_height;
+
+    vec4 instance = vec4(float(mod(gl_InstanceID, u_width)) - float(u_width)/2.0,
+        float(gl_InstanceID/u_width) - float(u_height)/2.0, 0, 0);
 
     /* https://github.com/glslify/glsl-easings/blob/master/bounce-out.glsl */
     float bounceOut(float t) {
@@ -179,43 +183,51 @@ fn main() {
                 : 10.8 * t * t - 20.52 * t + 10.72;
     }
 
-    vec4 instance = vec4(float(mod(gl_InstanceID,width)) - float(width)/2.0,
-        float(gl_InstanceID/width) - float(height)/2.0, 0, 0);
-
     float wobble = alive*bounceOut(tick*1.2) + (1.0-alive)*(1-smoothstep(0.0,0.5,tick));
 
     void main() {
-        valive = alive;
-        vtick = tick;
+        v_alive = alive;
+        v_tick = tick;
 
         /* Transform normal vector with model transformation matrix */
-        vnormal = transpose(inverse(mat3(model_matrix))) * normal;
+        v_normal = transpose(inverse(mat3(u_model))) * normal;
         /* Transform the instance according to its scaling factor, and the wobble birth&death effect */
-        vec4 origin = model_matrix * vec4(position * wobble * scaling, 1);
+        vec4 origin = u_model * vec4(position * wobble * u_scaling, 1);
         /* Move the instance on the grid, apply camera transformation and perspective transformation */
-        gl_Position = perspective_matrix * camera_matrix * (instance + origin);
+        gl_Position = u_perspective * u_camera * (instance + origin);
+        v_position = gl_Position.xyz / gl_Position.w;
     }
     "#;
 
     let fragment_shader_src = r#"
     #version 150
     
-    in float valive;
-    in float vtick;
-    in vec3 vnormal;
+    in float v_alive;
+    in float v_tick;
+    in vec3 v_normal;
+    in vec3 v_position;
+
     out vec4 color;
 
-    vec3 white = vec3(1.0, 1.0, 1.0);
-    vec3 black = vec3(0.5, 0.5, 0.5);
-    
-    uniform vec3 light;
-    
+    uniform vec3 u_light;
+
+    const vec3 ambient = vec3(0.2, 0.2, 0.2);
+    const vec3 diffuse = vec3(0.6, 0.6, 0.6);
+
+    vec3 ambient_color = v_alive*mix(vec3(0.0, 0.2, 0.0), ambient, v_tick) 
+        + (1.0-v_alive)*mix(ambient, vec3(0.2, 0.0, 0.0), v_tick*2.5);
+    vec3 diffuse_color = v_alive*mix(vec3(0.0, 0.6, 0.0), diffuse, v_tick) 
+        + (1.0-v_alive)*mix(diffuse, vec3(0.6, 0.0, 0.0), v_tick*2.5);
+    vec3 specular_color = vec3(1.0, 1.0, 1.0);
+
     /* Simple Gouraud shading */
     void main() {
-        vec3 lightc = valive*mix(vec3(0.0, 0.6, 0.0), white, vtick) + (1.0-valive)*mix(white, vec3(0.6, 0.0, 0.0), vtick*2.5);
-        vec3 darkc = valive*mix(vec3(0.0, 0.3, 0.0), black, vtick) + (1.0-valive)*mix(black, vec3(0.3, 0.0, 0.0), vtick*2.5);
-        float brightness = dot(normalize(vnormal), normalize(light));
-        color = vec4(mix(darkc, lightc, brightness), 1.0);
+        float diffuse = max(dot(normalize(v_normal), normalize(u_light)), 0.0);
+        vec3 camera_dir = normalize(-v_position);
+        vec3 half_direction = normalize(normalize(u_light)+camera_dir);
+        float specular = pow(max(dot(half_direction, normalize(v_normal)), 0.0), 16.0);
+
+        color = vec4(ambient_color + diffuse * diffuse_color + specular * specular_color, 1.0);
     }
     "#;
 
@@ -313,13 +325,13 @@ fn main() {
                 (&vertex_buffer, per_instance.per_instance().unwrap()),
                 &index_buffer,
                 &program,
-                &uniform! { scaling: cube.scaling,
-                model_matrix: model_matrix(t),
-                camera_matrix: camera,
-                perspective_matrix: perspective_matrix(&target),
-                light: light,
-                height: HEIGHT as i32,
-                width: WIDTH as i32},
+                &uniform! { u_scaling: cube.scaling,
+                u_model: model_matrix(t),
+                u_camera: camera,
+                u_perspective: perspective_matrix(&target),
+                u_light: light,
+                u_height: HEIGHT as i32,
+                u_width: WIDTH as i32},
                 &params,
             )
             .unwrap();

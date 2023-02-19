@@ -9,4 +9,4 @@ edition = "2021"
 glium = "*"
 rand = "0.8.5"
 tobj = "3.2.4"
-
+nalgebra = "0.32.1"

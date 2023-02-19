@@ -3,6 +3,7 @@ mod universe;
 
 #[macro_use]
 extern crate glium;
+extern crate nalgebra as na;
 
 use model::{Model, Vertex};
 use std::f32::consts::PI;
@@ -18,76 +19,24 @@ implement_vertex!(Vertex, position, normal, color);
 
 fn perspective_matrix(target: &impl glium::Surface) -> [[f32; 4]; 4] {
     let (width, height) = target.get_dimensions();
-    let aspect_ratio = height as f32 / width as f32;
 
-    let fov: f32 = PI / 3.0;
-    let zfar = 1024.0;
-    let znear = 0.1;
+    let projection = na::Perspective3::new(width as f32 / height as f32, PI / 3.0, 0.1, 1024.0);
 
-    let f = 1.0 / (fov / 2.0).tan();
-
-    [
-        [f * aspect_ratio, 0.0, 0.0, 0.0],
-        [0.0, f, 0.0, 0.0],
-        [0.0, 0.0, (zfar + znear) / (zfar - znear), 1.0],
-        [0.0, 0.0, -(2.0 * zfar * znear) / (zfar - znear), 0.0],
-    ]
+    return *projection.to_homogeneous().as_ref();
 }
 
-fn model_matrix(t: f32) -> [[f32; 4]; 4] {
-    /* https://en.wikipedia.org/wiki/Rotation_matrix
-     * R = Rz*Ry*Rx
-     */
-    [
-        [t.cos() * t.cos(), t.cos() * t.sin(), -t.sin(), 0.0],
-        [
-            t.sin() * t.sin() * t.cos() - t.cos() * t.sin(),
-            t.sin() * t.sin() * t.sin() + t.cos() * t.cos(),
-            t.sin() * t.cos(),
-            0.0,
-        ],
-        [
-            t.cos() * t.sin() * t.cos() + t.sin() * t.sin(),
-            t.cos() * t.sin() * t.sin() - t.sin() * t.cos(),
-            t.cos() * t.cos(),
-            0.0,
-        ],
-        [0.0, 0.0, 0.0, 1.0f32],
-    ]
+fn model_matrix(roll: f32, pitch: f32, yaw: f32) -> [[f32; 4]; 4] {
+    let rotation = na::Rotation3::from_euler_angles(roll, pitch, yaw);
+    *rotation.to_homogeneous().as_ref()
 }
 
 fn camera_matrix(position: &[f32; 3], direction: &[f32; 3], up: &[f32; 3]) -> [[f32; 4]; 4] {
-    let f = {
-        let f = direction;
-        let len = f[0] * f[0] + f[1] * f[1] + f[2] * f[2];
-        let len = len.sqrt();
-        [f[0] / len, f[1] / len, f[2] / len]
-    };
+    let eye = na::Point3::from_slice(position);
+    let target = na::Point3::from_slice(direction);
+    let up = na::Vector3::from_row_slice(up);
+    let view = na::Isometry3::look_at_rh(&eye, &target, &up);
 
-    let s = [up[1] * f[2] - up[2] * f[1],
-             up[2] * f[0] - up[0] * f[2],
-             up[0] * f[1] - up[1] * f[0]];
-
-    let s_norm = {
-        let len = s[0] * s[0] + s[1] * s[1] + s[2] * s[2];
-        let len = len.sqrt();
-        [s[0] / len, s[1] / len, s[2] / len]
-    };
-
-    let u = [f[1] * s_norm[2] - f[2] * s_norm[1],
-             f[2] * s_norm[0] - f[0] * s_norm[2],
-             f[0] * s_norm[1] - f[1] * s_norm[0]];
-
-    let p = [-position[0] * s_norm[0] - position[1] * s_norm[1] - position[2] * s_norm[2],
-             -position[0] * u[0] - position[1] * u[1] - position[2] * u[2],
-             -position[0] * f[0] - position[1] * f[1] - position[2] * f[2]];
-
-    [
-        [s_norm[0], u[0], f[0], 0.0],
-        [s_norm[1], u[1], f[1], 0.0],
-        [s_norm[2], u[2], f[2], 0.0],
-        [p[0], p[1], p[2], 1.0],
-    ]
+    *view.to_homogeneous().as_ref()
 }
 
 fn main() {
@@ -211,7 +160,7 @@ fn main() {
 
     uniform vec3 u_light;
 
-    const vec3 ambient = vec3(0.2, 0.2, 0.2);
+    const vec3 ambient = vec3(0.3, 0.3, 0.3);
     const vec3 diffuse = vec3(0.6, 0.6, 0.6);
 
     vec3 ambient_color = v_alive*mix(vec3(0.0, 0.2, 0.0), ambient, v_tick) 
@@ -225,7 +174,7 @@ fn main() {
         float diffuse = max(dot(normalize(v_normal), normalize(u_light)), 0.0);
         vec3 camera_dir = normalize(-v_position);
         vec3 half_direction = normalize(normalize(u_light)+camera_dir);
-        float specular = pow(max(dot(half_direction, normalize(v_normal)), 0.0), 16.0);
+        float specular = pow(max(dot(half_direction, normalize(v_normal)), 0.0), 80.0);
 
         color = vec4(ambient_color + diffuse * diffuse_color + specular * specular_color, 1.0);
     }
@@ -266,21 +215,23 @@ fn main() {
                     *control_flow = glutin::event_loop::ControlFlow::Exit;
                     return;
                 }
-                event::WindowEvent::KeyboardInput { input, ..} => {
-                    match input {
-                        event::KeyboardInput {
-                            virtual_keycode: Some(event::VirtualKeyCode::Space),
-                            state: event::ElementState::Pressed,
-                            ..
-                        } => { randomize = true; }
-                        event::KeyboardInput {
-                            virtual_keycode: Some(event::VirtualKeyCode::S),
-                            state: event::ElementState::Pressed,
-                            ..
-                        } => { stop = !stop; }
-                        _ => ()
+                event::WindowEvent::KeyboardInput { input, .. } => match input {
+                    event::KeyboardInput {
+                        virtual_keycode: Some(event::VirtualKeyCode::Space),
+                        state: event::ElementState::Pressed,
+                        ..
+                    } => {
+                        randomize = true;
                     }
-                }
+                    event::KeyboardInput {
+                        virtual_keycode: Some(event::VirtualKeyCode::S),
+                        state: event::ElementState::Pressed,
+                        ..
+                    } => {
+                        stop = !stop;
+                    }
+                    _ => (),
+                },
                 _ => return,
             },
             event::Event::NewEvents(cause) => match cause {
@@ -326,7 +277,7 @@ fn main() {
                 &index_buffer,
                 &program,
                 &uniform! { u_scaling: cube.scaling,
-                u_model: model_matrix(t),
+                u_model: model_matrix(t, t, t),
                 u_camera: camera,
                 u_perspective: perspective_matrix(&target),
                 u_light: light,
@@ -341,10 +292,14 @@ fn main() {
             if randomize {
                 universe.rand();
                 randomize = false;
-            } 
-            else {
-                if !stop { universe.step(); }
-                println!("fps: {:.2}", 1000.0*LIFECYCLE as f32/start.elapsed().as_millis() as f32);
+            } else {
+                if !stop {
+                    universe.step();
+                }
+                println!(
+                    "fps: {:.2}",
+                    1000.0 * LIFECYCLE as f32 / start.elapsed().as_millis() as f32
+                );
                 start = std::time::Instant::now();
             }
         }

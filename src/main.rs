@@ -22,7 +22,7 @@ fn perspective_matrix(target: &impl glium::Surface) -> [[f32; 4]; 4] {
 
     let projection = na::Perspective3::new(width as f32 / height as f32, PI / 3.0, 0.1, 1024.0);
 
-    return *projection.to_homogeneous().as_ref();
+    *projection.to_homogeneous().as_ref()
 }
 
 fn model_matrix(roll: f32, pitch: f32, yaw: f32) -> [[f32; 4]; 4] {

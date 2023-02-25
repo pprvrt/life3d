@@ -258,7 +258,7 @@ fn main() {
 
     /* Camera */
     let camera =
-        Camera::new([0.0, 0.0, -15.0], [0.0, 0.6, 1.0], [0.0, 1.0, 0.0]);
+        Camera::new([0.0, 0.0, -25.0], [0.0, 0.6, 1.0], [0.0, 1.0, 0.0]);
 
     let mut clear = false;
     let mut randomize = false;

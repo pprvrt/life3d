@@ -16,7 +16,7 @@ pub struct Cell {
 pub struct Universe {
     pub width: usize,
     pub height: usize,
-    pub cells: Vec<Cell>,
+    pub cells: Vec<Cell>
 }
 
 impl fmt::Display for Universe {
@@ -35,7 +35,7 @@ impl fmt::Display for Universe {
 }
 
 impl Universe {
-    fn index(&self, cx: usize, cy: usize) -> usize {
+    pub fn index(&self, cx: usize, cy: usize) -> usize {
         cy * self.width + cx
     }
 
@@ -90,6 +90,15 @@ impl Universe {
         count
     }
 
+    pub fn toggle(&mut self, x: usize, y: usize) {
+        let index = self.index(x, y);
+        self.cells[index].state = match self.cells[index].state {
+            CellState::Dead => CellState::Alive,
+            CellState::Alive => CellState::Dead
+        };
+        self.cells[index].changed = true;
+    }
+
     pub fn rand(&mut self) {
         let mut rng = rand::thread_rng();
         let mut cells: Vec<Cell> = Vec::new();
@@ -104,6 +113,18 @@ impl Universe {
             cells.push(Cell {
                 state,
                 changed: cell.state != state,
+            })
+        }
+        self.cells = cells;
+    }
+
+    pub fn clear(&mut self) {
+        let mut cells: Vec<Cell> = Vec::new();
+
+        for (_, cell) in (0..self.width * self.height).zip(self.cells.iter_mut()) {
+            cells.push(Cell {
+                state: CellState::Dead,
+                changed: cell.state == CellState::Alive,
             })
         }
         self.cells = cells;

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod model;
 mod universe;
 
@@ -17,26 +19,75 @@ const LIFECYCLE: u32 = 40;
 
 implement_vertex!(Vertex, position, normal, color);
 
-fn perspective_matrix(target: &impl glium::Surface) -> [[f32; 4]; 4] {
+struct Mouse {
+    x: u16,
+    y: u16,
+}
+
+struct Camera {
+    position: [f32; 3],
+    direction: [f32; 3],
+    up: [f32; 3],
+    matrix: na::Isometry3<f32>,
+}
+
+impl Camera {
+    fn new(position: [f32; 3], direction: [f32; 3], up: [f32; 3]) -> Self {
+        Camera {
+            position,
+            direction,
+            up,
+            matrix: view_matrix(&position, &direction, &up),
+        }
+    }
+}
+
+fn mouse_projection(
+    width: u32,
+    height: u32,
+    mouse: &Mouse,
+    camera: &Camera,
+    perspective: &na::Perspective3<f32>,
+) -> [usize; 2] {
+    let ray = na::Vector3::new(
+        2.0 * mouse.x as f32 / width as f32 - 1.0,
+        1.0 - 2.0 * mouse.y as f32 / height as f32,
+        0.0,
+    )
+    .to_homogeneous();
+
+    let mut ray_eye = perspective.inverse() * ray;
+    (ray_eye.z, ray_eye.w) = (-1.0, 0.0);
+
+    let mut ray_world =
+        (camera.matrix.inverse().to_homogeneous() * ray_eye).xyz();
+    ray_world.normalize_mut();
+
+    let t = -camera.position[2] / ray_world[2];
+    let x = camera.position[0] + ray_world[0] * t + 0.5 + WIDTH as f32 / 2.0;
+    let y = camera.position[1] + ray_world[1] * t + 0.5 + HEIGHT as f32 / 2.0;
+
+    [x as usize, y as usize]
+}
+
+fn perspective_matrix(target: &impl glium::Surface) -> na::Perspective3<f32> {
     let (width, height) = target.get_dimensions();
-
-    let projection = na::Perspective3::new(width as f32 / height as f32, PI / 3.0, 0.1, 1024.0);
-
-    *projection.to_homogeneous().as_ref()
+    na::Perspective3::new(width as f32 / height as f32, PI / 3.0, 0.1, 1024.0)
 }
 
-fn model_matrix(roll: f32, pitch: f32, yaw: f32) -> [[f32; 4]; 4] {
-    let rotation = na::Rotation3::from_euler_angles(roll, pitch, yaw);
-    *rotation.to_homogeneous().as_ref()
+fn model_matrix(roll: f32, pitch: f32, yaw: f32) -> na::Rotation3<f32> {
+    na::Rotation3::from_euler_angles(roll, pitch, yaw)
 }
 
-fn camera_matrix(position: &[f32; 3], direction: &[f32; 3], up: &[f32; 3]) -> [[f32; 4]; 4] {
+fn view_matrix(
+    position: &[f32; 3],
+    direction: &[f32; 3],
+    up: &[f32; 3],
+) -> na::Isometry3<f32> {
     let eye = na::Point3::from_slice(position);
     let target = na::Point3::from_slice(direction);
     let up = na::Vector3::from_row_slice(up);
-    let view = na::Isometry3::look_at_rh(&eye, &target, &up);
-
-    *view.to_homogeneous().as_ref()
+    na::Isometry3::look_at_rh(&eye, &target, &up)
 }
 
 fn main() {
@@ -44,7 +95,8 @@ fn main() {
     use glutin::event;
 
     let event_loop = glutin::event_loop::EventLoop::new();
-    let wb = glutin::window::WindowBuilder::new().with_title("Conway's game of life");
+    let wb = glutin::window::WindowBuilder::new()
+        .with_title("Conway's game of life");
     let cb = glutin::ContextBuilder::new().with_depth_buffer(24);
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
@@ -58,7 +110,8 @@ fn main() {
     // Load cube model from OBJ
     let cube = Model::from_obj("./resources/cube.obj");
 
-    let vertex_buffer = glium::VertexBuffer::new(&display, &cube.vertices).unwrap();
+    let vertex_buffer =
+        glium::VertexBuffer::new(&display, &cube.vertices).unwrap();
 
     let index_buffer = glium::IndexBuffer::new(
         &display,
@@ -99,10 +152,9 @@ fn main() {
     out float v_alive;
     out float v_tick;
     
-    uniform mat4 u_camera;
+    uniform mat4 u_view;
     uniform mat4 u_perspective;
     uniform mat4 u_model;
-    uniform float u_scaling;
     uniform int u_width;
     uniform int u_height;
 
@@ -140,10 +192,10 @@ fn main() {
 
         /* Transform normal vector with model transformation matrix */
         v_normal = transpose(inverse(mat3(u_model))) * normal;
-        /* Transform the instance according to its scaling factor, and the wobble birth&death effect */
-        vec4 origin = u_model * vec4(position * wobble * u_scaling, 1);
+        /* Transform the instance according to the wobble birth&death effect */
+        vec4 origin = u_model * vec4(position * wobble, 1);
         /* Move the instance on the grid, apply camera transformation and perspective transformation */
-        gl_Position = u_perspective * u_camera * (instance + origin);
+        gl_Position = u_perspective * u_view * (instance + origin);
         v_position = gl_Position.xyz / gl_Position.w;
     }
     "#;
@@ -169,7 +221,6 @@ fn main() {
         + (1.0-v_alive)*mix(diffuse, vec3(0.6, 0.0, 0.0), v_tick*2.5);
     vec3 specular_color = vec3(1.0, 1.0, 1.0);
 
-    /* Simple Gouraud shading */
     void main() {
         float diffuse = max(dot(normalize(v_normal), normalize(u_light)), 0.0);
         vec3 camera_dir = normalize(-v_position);
@@ -191,9 +242,13 @@ fn main() {
         ..Default::default()
     };
 
-    let program =
-        glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None)
-            .unwrap();
+    let program = glium::Program::from_source(
+        &display,
+        vertex_shader_src,
+        fragment_shader_src,
+        None,
+    )
+    .unwrap();
 
     /* Frame counter */
     let mut frame = 0;
@@ -202,12 +257,16 @@ fn main() {
     let light = [-1.0, 0.4, -0.9f32];
 
     /* Camera */
-    let camera = camera_matrix(&[0.0, 0.0, -15.0], &[0.0, 0.6, 1.0], &[0.0, 1.0, 0.0]);
+    let camera =
+        Camera::new([0.0, 0.0, -15.0], [0.0, 0.6, 1.0], [0.0, 1.0, 0.0]);
 
+    let mut clear = false;
     let mut randomize = false;
     let mut stop = false;
+    let mut toggle = false;
 
-    let mut start = std::time::Instant::now();
+    let mut mouse = Mouse { x: 0, y: 0 };
+
     event_loop.run(move |ev, _, control_flow| {
         match ev {
             event::Event::WindowEvent { event, .. } => match event {
@@ -215,23 +274,42 @@ fn main() {
                     *control_flow = glutin::event_loop::ControlFlow::Exit;
                     return;
                 }
-                event::WindowEvent::KeyboardInput { input, .. } => match input {
-                    event::KeyboardInput {
-                        virtual_keycode: Some(event::VirtualKeyCode::Space),
-                        state: event::ElementState::Pressed,
-                        ..
-                    } => {
-                        randomize = true;
+                event::WindowEvent::KeyboardInput { input, .. } => {
+                    match input {
+                        event::KeyboardInput {
+                            virtual_keycode: Some(event::VirtualKeyCode::Space),
+                            state: event::ElementState::Pressed,
+                            ..
+                        } => {
+                            randomize = true;
+                        }
+                        event::KeyboardInput {
+                            virtual_keycode: Some(event::VirtualKeyCode::X),
+                            state: event::ElementState::Pressed,
+                            ..
+                        } => {
+                            clear = true;
+                        }
+                        event::KeyboardInput {
+                            virtual_keycode: Some(event::VirtualKeyCode::S),
+                            state: event::ElementState::Pressed,
+                            ..
+                        } => {
+                            stop = !stop;
+                        }
+                        _ => (),
                     }
-                    event::KeyboardInput {
-                        virtual_keycode: Some(event::VirtualKeyCode::S),
-                        state: event::ElementState::Pressed,
-                        ..
-                    } => {
-                        stop = !stop;
-                    }
-                    _ => (),
-                },
+                }
+                event::WindowEvent::CursorMoved { position, .. } => {
+                    (mouse.x, mouse.y) = (position.x as u16, position.y as u16);
+                }
+                event::WindowEvent::MouseInput {
+                    button: event::MouseButton::Left,
+                    state: event::ElementState::Pressed,
+                    ..
+                } => {
+                    toggle = true;
+                }
                 _ => return,
             },
             event::Event::NewEvents(cause) => match cause {
@@ -242,32 +320,43 @@ fn main() {
             _ => return,
         }
 
-        let next_frame_time =
-            std::time::Instant::now() + std::time::Duration::from_nanos(16_666_667);
-        *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
+        let mut target = display.draw();
+        let (target_x, target_y) = target.get_dimensions();
+
+        t = (t + PI / 45.0) % (PI * 2.0);
+
+        let model_matrix = model_matrix(t, t, t);
+        let projection_matrix = perspective_matrix(&target);
+
+        let next_frame_time = std::time::Instant::now()
+            + std::time::Duration::from_nanos(16_666_667);
+        *control_flow =
+            glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
+
+            if toggle {
+                let [x, y] = mouse_projection(
+                    target_x,
+                    target_y,
+                    &mouse,
+                    &camera,
+                    &projection_matrix,
+                );
+                universe.toggle(x, y);
+                toggle = false;
+            }
 
         {
             let mut mapping = per_instance.map();
             for (id, attr) in (0..WIDTH * HEIGHT).zip(mapping.iter_mut()) {
-                if !stop && frame % LIFECYCLE == 0 {
-                    attr.alive = match universe.is_alive(id) {
-                        true => 1.0,
-                        false => 0.0,
-                    };
-                    if universe.has_changed(id) {
-                        attr.tick = 0.0
-                    };
-                }
-
-                if universe.has_changed(id) && attr.tick < 1.0 {
-                    attr.tick += 1.0 / LIFECYCLE as f32;
+                attr.alive = match universe.is_alive(id) {
+                    true => 1.0,
+                    false => 0.0,
+                };
+                if universe.has_changed(id) {
+                    attr.tick = (frame % LIFECYCLE) as f32 / LIFECYCLE as f32;
                 }
             }
         }
-
-        t = (t + PI / 45.0) % (PI * 2.0);
-
-        let mut target = display.draw();
 
         target.clear_color_and_depth((0.0, 0.0, 0.4, 0.8), 1.0);
 
@@ -276,10 +365,10 @@ fn main() {
                 (&vertex_buffer, per_instance.per_instance().unwrap()),
                 &index_buffer,
                 &program,
-                &uniform! { u_scaling: cube.scaling,
-                u_model: model_matrix(t, t, t),
-                u_camera: camera,
-                u_perspective: perspective_matrix(&target),
+                &uniform! {
+                u_model: *model_matrix.to_homogeneous().as_ref(),
+                u_view: *camera.matrix.to_homogeneous().as_ref(),
+                u_perspective: *projection_matrix.to_homogeneous().as_ref(),
                 u_light: light,
                 u_height: HEIGHT as i32,
                 u_width: WIDTH as i32},
@@ -287,20 +376,22 @@ fn main() {
             )
             .unwrap();
         target.finish().unwrap();
-        frame += 1;
+
+        if !stop || (stop && frame % LIFECYCLE < LIFECYCLE-1) {
+            frame += 1;
+        }
         if frame % LIFECYCLE == 0 {
-            if randomize {
-                universe.rand();
-                randomize = false;
-            } else {
-                if !stop {
-                    universe.step();
+            if randomize || clear {
+                if randomize {
+                    universe.rand();
+                    randomize = false;
                 }
-                println!(
-                    "fps: {:.2}",
-                    1000.0 * LIFECYCLE as f32 / start.elapsed().as_millis() as f32
-                );
-                start = std::time::Instant::now();
+                if clear {
+                    universe.clear();
+                    clear = false;
+                }
+            } else {
+                    universe.step();
             }
         }
     });

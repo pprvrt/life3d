@@ -77,6 +77,12 @@ impl Model {
             + f32::powf(max_pos[2] - min_pos[2], 2.0);
         let scaling = f32::sqrt(diagonal_len / current_len);
 
+        for vertex in vertices.iter_mut() {
+            for i in 0..3 {
+                vertex.position[i] = vertex.position[i] * scaling;
+            }
+        }
+
         Model {
             vertices,
             indices,

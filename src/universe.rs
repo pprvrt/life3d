@@ -130,6 +130,10 @@ impl Universe {
         self.cells = cells;
     }
 
+    pub fn dimensions(&self) -> (usize, usize) {
+        (self.width, self.height)
+    }
+
     pub fn new(width: usize, height: usize) -> Universe {
         Universe {
             width,

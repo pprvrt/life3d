@@ -1,12 +1,13 @@
 #![allow(dead_code)]
 
+mod support;
 mod model;
 mod universe;
 
 #[macro_use]
 extern crate glium;
-extern crate nalgebra as na;
 
+use support::{Engine, Camera, EngineEvents, EngineDrawState, mouse_projection, perspective_matrix, model_matrix};
 use model::{Model, Vertex};
 use std::f32::consts::PI;
 use universe::Universe;
@@ -19,139 +20,6 @@ const LIFECYCLE: u32 = 24;
 
 implement_vertex!(Vertex, position, normal, color);
 
-struct Mouse {
-    x: u16,
-    y: u16,
-}
-
-#[derive(Debug, PartialEq)]
-enum EngineState {
-    Running,
-    Stopped,
-}
-
-enum EngineDrawState {
-    Drawing,
-    None,
-}
-
-enum EngineEvents {
-    Randomize,
-    Clear,
-    None,
-}
-
-struct Draw {
-    cx: i32,
-    cy: i32,
-    state: EngineDrawState,
-}
-
-struct Engine {
-    state: EngineState,
-    draw: Draw,
-    event: EngineEvents,
-    mouse: Mouse,
-    frame: u32
-}
-
-impl Engine {
-    fn new() -> Self {
-        Engine {
-            state: EngineState::Running,
-            draw: Draw {
-                cx: -1,
-                cy: -1,
-                state: EngineDrawState::None,
-            },
-            event: EngineEvents::None,
-            mouse: Mouse { x: 0, y: 0 },
-            frame: 0
-        }
-    }
-    fn step(&mut self) {
-        self.frame = (self.frame + 1) % LIFECYCLE;
-    }
-
-    fn reset(&mut self) {
-        self.frame = 0;
-    }
-}
-
-struct Camera {
-    position: [f32; 3],
-    direction: [f32; 3],
-    up: [f32; 3],
-    matrix: na::Isometry3<f32>,
-}
-
-impl Camera {
-    fn new(position: [f32; 3], direction: [f32; 3], up: [f32; 3]) -> Self {
-        Camera {
-            position,
-            direction,
-            up,
-            matrix: view_matrix(&position, &direction, &up),
-        }
-    }
-}
-
-fn mouse_projection(
-    width: u32,
-    height: u32,
-    mouse: &Mouse,
-    camera: &Camera,
-    perspective: &na::Perspective3<f32>,
-) -> Option<[usize; 2]> {
-    let ray = na::Vector3::new(
-        2.0 * mouse.x as f32 / width as f32 - 1.0,
-        1.0 - 2.0 * mouse.y as f32 / height as f32,
-        0.0,
-    )
-    .to_homogeneous();
-    
-    let mut ray_eye = perspective.inverse() * ray;
-    (ray_eye.z, ray_eye.w) = (-1.0, 0.0);
-    
-    let mut ray_world =
-    (camera.matrix.inverse().to_homogeneous() * ray_eye).xyz();
-    ray_world.normalize_mut();
-    
-    let t = -camera.position[2] / ray_world[2];
-    let x = camera.position[0] + ray_world[0] * t + 0.5 + WIDTH as f32 / 2.0;
-    let y = camera.position[1] + ray_world[1] * t + 0.5 + HEIGHT as f32 / 2.0;
-    
-    if x >= 0.0
-    && y >= 0.0
-    && x < WIDTH as f32
-    && y < HEIGHT as f32
-    {
-        Some([x as usize, y as usize])
-    } else {
-        None
-    }
-}
-
-fn perspective_matrix(target: &impl glium::Surface) -> na::Perspective3<f32> {
-    let (width, height) = target.get_dimensions();
-    na::Perspective3::new(width as f32 / height as f32, PI / 3.0, 0.1, 1024.0)
-}
-
-fn model_matrix(roll: f32, pitch: f32, yaw: f32) -> na::Rotation3<f32> {
-    na::Rotation3::from_euler_angles(roll, pitch, yaw)
-}
-
-fn view_matrix(
-    position: &[f32; 3],
-    direction: &[f32; 3],
-    up: &[f32; 3],
-) -> na::Isometry3<f32> {
-    let eye = na::Point3::from_slice(position);
-    let target = na::Point3::from_slice(direction);
-    let up = na::Vector3::from_row_slice(up);
-    na::Isometry3::look_at_rh(&eye, &target, &up)
-}
-
 fn main() {
     use glium::{glutin, Surface};
     use glutin::event;
@@ -163,7 +31,7 @@ fn main() {
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
     
     // Create engine and universe
-    let mut engine = Engine::new();
+    let mut engine = Engine::new(LIFECYCLE);
     let mut universe = Universe::new(WIDTH, HEIGHT);
     universe.rand();
     
@@ -317,8 +185,9 @@ fn main() {
     let light = [-1.0, 0.4, -0.9f32];
     
     /* Camera */
-    let camera =
-    Camera::new([0.0, 0.0, -25.0], [0.0, 8.0, 1.0], [0.0, 1.0, 0.0]);
+    let camera = Camera::new([0.0, 0.0, -25.0],
+        [0.0, 8.0, 1.0],
+        [0.0, 1.0, 0.0]);
     
     event_loop.run(move |ev, _, control_flow| {
         match ev {
@@ -334,7 +203,7 @@ fn main() {
                             state: event::ElementState::Pressed,
                             ..
                         } => {
-                            engine.event = EngineEvents::Randomize;
+                            engine.trigger(EngineEvents::Randomize);
                             return
                         }
                         event::KeyboardInput {
@@ -342,7 +211,7 @@ fn main() {
                             state: event::ElementState::Pressed,
                             ..
                         } => {
-                            engine.event = EngineEvents::Clear;
+                            engine.trigger(EngineEvents::Clear);
                             return
                         }
                         event::KeyboardInput {
@@ -350,18 +219,14 @@ fn main() {
                             state: event::ElementState::Pressed,
                             ..
                         } => {
-                            engine.state = match engine.state {
-                                EngineState::Running => EngineState::Stopped,
-                                EngineState::Stopped => EngineState::Running,
-                            };
+                            engine.startstop();
                             return
                         }
                         _ => return,
                     }
                 }
                 event::WindowEvent::CursorMoved { position, .. } => {
-                    (engine.mouse.x, engine.mouse.y) =
-                    (position.x as u16, position.y as u16);
+                    engine.set_mouse(position.x as u16, position.y as u16);
                     return;
                 }
                 event::WindowEvent::MouseInput {
@@ -369,15 +234,9 @@ fn main() {
                     state,
                     ..
                 } => {
-                    engine.draw.state = match state {
-                        event::ElementState::Pressed => {
-                            EngineDrawState::Drawing
-                        }
-                        event::ElementState::Released => {
-                            engine.draw.cx = -1;
-                            engine.draw.cy = -1;
-                            EngineDrawState::None
-                        }
+                    match state {
+                        event::ElementState::Pressed => engine.start_drawing(),
+                        event::ElementState::Released => engine.stop_drawing()
                     };
                     return
                 }
@@ -403,19 +262,18 @@ fn main() {
         + std::time::Duration::from_nanos(16_666_667);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
         
-        if let EngineDrawState::Drawing = engine.draw.state {
+        if let EngineDrawState::Drawing = engine.draw_state() {
             /* Project the mouse 2D position into the 3D world */
             if let Some([cx, cy]) = mouse_projection(
-                target_x,
-                target_y,
-                &engine.mouse,
+                target_x, target_y,
+                engine.mouse(),
                 &camera,
                 &projection_matrix,
+                &universe
             ) {   
-                if cx as i32 != engine.draw.cx || cy as i32 != engine.draw.cy {
+                if !engine.has_drawn(cx as i32, cy as i32) {
                     universe.toggle(cx, cy);
-                    engine.draw.cx = cx as i32;
-                    engine.draw.cy = cy as i32;
+                    engine.draw(cx as i32, cy as i32);
                 }
             }
         }
@@ -428,7 +286,7 @@ fn main() {
                     false => 0.0,
                 };
                 if universe.has_changed(id) {
-                    attr.tick = engine.frame as f32 / LIFECYCLE as f32;
+                    attr.tick = engine.frame() as f32 / LIFECYCLE as f32;
                 } else {
                     /* We might have reset the universe in-between generations, we cannot
                     * assume that unchanged cells were fully alive or dead */
@@ -446,7 +304,7 @@ fn main() {
             &program,
             &uniform! {
                 u_model: *model_matrix.to_homogeneous().as_ref(),
-                u_view: *camera.matrix.to_homogeneous().as_ref(),
+                u_view: *camera.view_matrix().to_homogeneous().as_ref(),
                 u_perspective: *projection_matrix.to_homogeneous().as_ref(),
                 u_light: light,
                 u_height: HEIGHT as i32,
@@ -457,23 +315,21 @@ fn main() {
             target.finish().unwrap();
             
             /* Handle engine events instantly */
-            match engine.event {
+            match engine.poll() {
                 EngineEvents::Randomize => { universe.rand(); engine.reset(); },
                 EngineEvents::Clear => { universe.clear(); engine.reset(); },
                 _ => ()
             }
-            engine.event = EngineEvents::None;
             
             /* If the engine is running, progress. If not, wait until
             the end of a generation to pause */
-            if engine.state == EngineState::Running
-            || engine.frame != LIFECYCLE - 1
+            if engine.is_running() || !engine.is_last_frame()
             {
                 engine.step();
             }
             
             /* It's a new dawn, it's a new day, it's new a life */
-            if engine.frame == 0 {
+            if engine.frame() == 0 {
                 universe.step();
             }
         });

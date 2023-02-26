@@ -79,7 +79,7 @@ impl Model {
 
         for vertex in vertices.iter_mut() {
             for i in 0..3 {
-                vertex.position[i] = vertex.position[i] * scaling;
+                vertex.position[i] *= scaling;
             }
         }
 

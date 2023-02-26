@@ -1,47 +1,9 @@
 extern crate nalgebra as na;
 extern crate glium;
 
-use crate::Universe;
+use crate::engine::Mouse;
+use crate::universe::Universe;
 use std::f32::consts::PI;
-
-pub struct Mouse {
-    x: u16,
-    y: u16,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum EngineState {
-    Running,
-    Stopped,
-}
-
-#[derive(Copy, Clone)]
-pub enum EngineDrawState {
-    Drawing,
-    None,
-}
-
-#[derive(Copy, Clone)]
-pub enum EngineEvents {
-    Randomize,
-    Clear,
-    None,
-}
-
-struct Draw {
-    cx: i32,
-    cy: i32,
-    state: EngineDrawState,
-}
-
-pub struct Engine {
-    state: EngineState,
-    draw: Draw,
-    event: EngineEvents,
-    mouse: Mouse,
-    frame: u32,
-    lifecycle: u32
-}
 
 pub struct Camera {
     position: [f32; 3],
@@ -77,96 +39,6 @@ impl Camera {
 
 }
 
-impl Engine {
-    pub fn new(lifecycle: u32) -> Self {
-        Engine {
-            state: EngineState::Running,
-            draw: Draw {
-                cx: -1,
-                cy: -1,
-                state: EngineDrawState::None,
-            },
-            event: EngineEvents::None,
-            mouse: Mouse { x: 0, y: 0 },
-            frame: 0,
-            lifecycle
-        }
-    }
-
-    pub fn set_mouse(&mut self, mx: u16, my: u16) {
-        self.mouse.x = mx;
-        self.mouse.y = my;
-    }
-
-    pub fn draw_state(&self) -> EngineDrawState {
-        return self.draw.state;
-    }
-
-    pub fn start_drawing(&mut self) {
-        self.draw.state = EngineDrawState::Drawing
-    }
-
-    pub fn stop_drawing(&mut self) {
-        self.draw.cx = -1;
-        self.draw.cy = -1;
-        self.draw.state = EngineDrawState::None;
-    }
-
-    pub fn has_drawn(&self, cx: i32, cy: i32) -> bool {
-        self.draw.cx == cx && self.draw.cy == cy
-    }
-
-    pub fn draw(&mut self, cx: i32, cy: i32) {
-        self.draw.cx = cx;
-        self.draw.cy = cy;
-    }
-
-    pub fn startstop(&mut self) {
-        self.state = match self.state {
-            EngineState::Running => EngineState::Stopped,
-            EngineState::Stopped => EngineState::Running,
-        };
-    }
-
-    pub fn is_running(&self) -> bool {
-        self.state == EngineState::Running
-    }
-
-    pub fn is_last_frame(&self) -> bool {
-        self.frame == self.lifecycle - 1
-    }
-
-    pub fn is_first_frame(&self) -> bool {
-        self.frame == 0
-    }
-
-    pub fn frame(&self) -> u32 {
-        self.frame
-    }
-
-    pub fn poll(&mut self) -> EngineEvents {
-        let event = self.event;
-        self.event = EngineEvents::None;
-        event
-    }
-
-    pub fn trigger(&mut self, event: EngineEvents) {
-        self.event = event;
-    }
-
-    pub fn step(&mut self) {
-        self.frame = (self.frame + 1) % self.lifecycle;
-    }
-
-    pub fn reset(&mut self) {
-        self.frame = 0;
-    }
-
-    pub fn mouse(&self) -> &Mouse {
-        &self.mouse
-    }
-}
-
 pub fn mouse_projection(
     width: u32,
     height: u32,
@@ -176,8 +48,8 @@ pub fn mouse_projection(
     universe: &Universe
 ) -> Option<[usize; 2]> {
     let ray = na::Vector3::new(
-        2.0 * mouse.x as f32 / width as f32 - 1.0,
-        1.0 - 2.0 * mouse.y as f32 / height as f32,
+        2.0 * mouse.x() as f32 / width as f32 - 1.0,
+        1.0 - 2.0 * mouse.y() as f32 / height as f32,
         0.0,
     )
     .to_homogeneous();
@@ -213,4 +85,101 @@ pub fn perspective_matrix(target: &impl glium::Surface) -> na::Perspective3<f32>
 
 pub fn model_matrix(roll: f32, pitch: f32, yaw: f32) -> na::Rotation3<f32> {
     na::Rotation3::from_euler_angles(roll, pitch, yaw)
+}
+
+
+pub fn vertex_shader() -> &'static str {
+    r#"
+    #version 150
+    
+    in vec3 position;
+    in vec3 normal;
+    in float alive;
+    in float tick;
+    
+    out vec3 v_normal;
+    out vec3 v_position;
+    out float v_alive;
+    out float v_tick;
+    
+    uniform mat4 u_view;
+    uniform mat4 u_perspective;
+    uniform mat4 u_model;
+    uniform int u_width;
+    uniform int u_height;
+    
+    vec4 instance = vec4(float(mod(gl_InstanceID, u_width)) - float(u_width)/2.0,
+    float(gl_InstanceID/u_width) - float(u_height)/2.0, 0, 0);
+    
+    /* https://github.com/glslify/glsl-easings/blob/master/bounce-out.glsl */
+    float bounceOut(float t) {
+        const float a = 4.0 / 11.0;
+        const float b = 8.0 / 11.0;
+        const float c = 9.0 / 10.0;
+        
+        const float ca = 4356.0 / 361.0;
+        const float cb = 35442.0 / 1805.0;
+        const float cc = 16061.0 / 1805.0;
+        
+        float t2 = t * t;
+        
+        return t < a
+        ? 7.5625 * t2
+        : t < b
+        ? 9.075 * t2 - 9.9 * t + 3.4
+        : t < c
+        ? ca * t2 - cb * t + cc
+        : t > 1.0
+        ? 1.0
+        : 10.8 * t * t - 20.52 * t + 10.72;
+    }
+    
+    float wobble = alive*bounceOut(tick*1.2) + (1.0-alive)*(1-smoothstep(0.0,0.5,tick));
+    
+    void main() {
+        v_alive = alive;
+        v_tick = tick;
+        
+        /* Transform normal vector with model transformation matrix */
+        v_normal = transpose(inverse(mat3(u_model))) * normal;
+        /* Transform the instance according to the wobble birth&death effect */
+        vec4 origin = u_model * vec4(position * wobble, 1);
+        /* Move the instance on the grid, apply camera transformation and perspective transformation */
+        gl_Position = u_perspective * u_view * (instance + origin);
+        v_position = gl_Position.xyz / gl_Position.w;
+    }
+    "#
+}
+
+pub fn fragment_shader() -> &'static str {
+    r#"
+    #version 150
+    
+    in float v_alive;
+    in float v_tick;
+    in vec3 v_normal;
+    in vec3 v_position;
+    
+    out vec4 color;
+    
+    uniform vec3 u_light;
+    
+    const vec3 ambient = vec3(0.3, 0.3, 0.3);
+    const vec3 diffuse = vec3(0.6, 0.6, 0.6);
+    
+    vec3 ambient_color = v_alive*mix(vec3(0.0, 0.2, 0.0), ambient, v_tick) 
+    + (1.0-v_alive)*mix(ambient, vec3(0.2, 0.0, 0.0), v_tick*2.5);
+    vec3 diffuse_color = v_alive*mix(vec3(0.0, 0.6, 0.0), diffuse, v_tick) 
+    + (1.0-v_alive)*mix(diffuse, vec3(0.6, 0.0, 0.0), v_tick*2.5);
+    vec3 specular_color = vec3(1.0, 1.0, 1.0);
+    
+    void main() {
+        float diffuse = max(dot(normalize(v_normal), normalize(u_light)), 0.0);
+        vec3 camera_dir = normalize(-v_position);
+        vec3 half_direction = normalize(normalize(u_light)+camera_dir);
+        float specular = pow(max(dot(half_direction, normalize(v_normal)), 0.0), 80.0);
+        
+        color = vec4(ambient_color + diffuse * diffuse_color + specular * specular_color, 1.0);
+    }
+    "#
 }

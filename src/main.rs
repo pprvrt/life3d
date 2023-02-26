@@ -52,6 +52,7 @@ struct Engine {
     draw: Draw,
     event: EngineEvents,
     mouse: Mouse,
+    frame: u32
 }
 
 impl Engine {
@@ -59,13 +60,21 @@ impl Engine {
         Engine {
             state: EngineState::Running,
             draw: Draw {
-                cx: 0,
-                cy: 0,
+                cx: -1,
+                cy: -1,
                 state: EngineDrawState::None,
             },
             event: EngineEvents::None,
             mouse: Mouse { x: 0, y: 0 },
+            frame: 0
         }
+    }
+    fn step(&mut self) {
+        self.frame = (self.frame + 1) % LIFECYCLE;
+    }
+
+    fn reset(&mut self) {
+        self.frame = 0;
     }
 }
 
@@ -304,9 +313,6 @@ fn main() {
     )
     .unwrap();
     
-    /* Frame counter */
-    let mut frame = 0;
-    
     /* Light source */
     let light = [-1.0, 0.4, -0.9f32];
     
@@ -367,7 +373,11 @@ fn main() {
                         event::ElementState::Pressed => {
                             EngineDrawState::Drawing
                         }
-                        event::ElementState::Released => EngineDrawState::None,
+                        event::ElementState::Released => {
+                            engine.draw.cx = -1;
+                            engine.draw.cy = -1;
+                            EngineDrawState::None
+                        }
                     };
                     return
                 }
@@ -391,10 +401,10 @@ fn main() {
         
         let next_frame_time = std::time::Instant::now()
         + std::time::Duration::from_nanos(16_666_667);
-        *control_flow =
-        glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
+        *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
         
         if let EngineDrawState::Drawing = engine.draw.state {
+            /* Project the mouse 2D position into the 3D world */
             if let Some([cx, cy]) = mouse_projection(
                 target_x,
                 target_y,
@@ -418,10 +428,10 @@ fn main() {
                     false => 0.0,
                 };
                 if universe.has_changed(id) {
-                    attr.tick = (frame % LIFECYCLE) as f32 / LIFECYCLE as f32;
+                    attr.tick = engine.frame as f32 / LIFECYCLE as f32;
                 } else {
                     /* We might have reset the universe in-between generations, we cannot
-                     * assume that unchanged cells were fully alive or dead */
+                    * assume that unchanged cells were fully alive or dead */
                     attr.tick = 1.0;
                 }
             }
@@ -448,22 +458,22 @@ fn main() {
             
             /* Handle engine events instantly */
             match engine.event {
-                EngineEvents::Randomize => { frame = 0; universe.rand() },
-                EngineEvents::Clear => { frame = 0 ; universe.clear() },
+                EngineEvents::Randomize => { universe.rand(); engine.reset(); },
+                EngineEvents::Clear => { universe.clear(); engine.reset(); },
                 _ => ()
             }
             engine.event = EngineEvents::None;
-
+            
             /* If the engine is running, progress. If not, wait until
             the end of a generation to pause */
             if engine.state == EngineState::Running
-            || frame != LIFECYCLE - 1
+            || engine.frame != LIFECYCLE - 1
             {
-                frame = (frame + 1) % LIFECYCLE;
+                engine.step();
             }
             
             /* It's a new dawn, it's a new day, it's new a life */
-            if frame == 0 {
+            if engine.frame == 0 {
                 universe.step();
             }
         });

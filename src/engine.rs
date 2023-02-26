@@ -18,14 +18,14 @@ pub enum EngineState {
     Stopped,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum EngineDrawState {
     Drawing,
     None,
 }
 
 #[derive(Copy, Clone)]
-pub enum EngineEvents {
+pub enum EngineEvent {
     Randomize,
     Clear,
     None,
@@ -40,7 +40,7 @@ struct Draw {
 pub struct Engine {
     state: EngineState,
     draw: Draw,
-    event: EngineEvents,
+    event: EngineEvent,
     mouse: Mouse,
     frame: u32,
     lifecycle: u32
@@ -55,7 +55,7 @@ impl Engine {
                 cy: -1,
                 state: EngineDrawState::None,
             },
-            event: EngineEvents::None,
+            event: EngineEvent::None,
             mouse: Mouse { x: 0, y: 0 },
             frame: 0,
             lifecycle
@@ -67,8 +67,8 @@ impl Engine {
         self.mouse.y = my;
     }
 
-    pub fn draw_state(&self) -> EngineDrawState {
-        self.draw.state
+    pub fn is_drawing(&self) -> bool {
+        self.draw.state == EngineDrawState::Drawing
     }
 
     pub fn start_drawing(&mut self) {
@@ -113,13 +113,13 @@ impl Engine {
         self.frame
     }
 
-    pub fn poll(&mut self) -> EngineEvents {
+    pub fn poll(&mut self) -> EngineEvent {
         let event = self.event;
-        self.event = EngineEvents::None;
+        self.event = EngineEvent::None;
         event
     }
 
-    pub fn trigger(&mut self, event: EngineEvents) {
+    pub fn trigger(&mut self, event: EngineEvent) {
         self.event = event;
     }
 

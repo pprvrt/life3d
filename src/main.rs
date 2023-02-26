@@ -158,7 +158,6 @@ fn main() {
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
 
         let mut target = display.draw();
-        let (target_x, target_y) = target.get_dimensions();
 
         let model_matrix = model_matrix(t, t, t);
         let projection_matrix = perspective_matrix(&target);
@@ -168,14 +167,13 @@ fn main() {
         if engine.is_drawing() {
             /* Project the mouse 2D position into the 3D world */
             if let Some([cx, cy]) = mouse_projection(
-                target_x,
-                target_y,
+                &target,
                 engine.mouse(),
                 &camera,
                 &projection_matrix,
                 &universe,
             ) {
-                if !engine.has_drawn(cx as i32, cy as i32) {
+                if !engine.just_drawn(cx as i32, cy as i32) {
                     universe.toggle(cx, cy);
                     engine.draw(cx as i32, cy as i32);
                 }

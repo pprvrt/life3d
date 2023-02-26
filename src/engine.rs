@@ -81,7 +81,7 @@ impl Engine {
         self.draw.state = EngineDrawState::None;
     }
 
-    pub fn has_drawn(&self, cx: i32, cy: i32) -> bool {
+    pub fn just_drawn(&self, cx: i32, cy: i32) -> bool {
         self.draw.cx == cx && self.draw.cy == cy
     }
 

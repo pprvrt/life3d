@@ -1,5 +1,5 @@
-extern crate nalgebra as na;
 extern crate glium;
+extern crate nalgebra as na;
 
 use crate::engine::Mouse;
 use crate::universe::Universe;
@@ -36,17 +36,17 @@ impl Camera {
     pub fn view_matrix(&self) -> &na::Isometry3<f32> {
         &self.matrix
     }
-
 }
 
 pub fn mouse_projection(
-    width: u32,
-    height: u32,
+    target: &impl glium::Surface,
     mouse: &Mouse,
     camera: &Camera,
     perspective: &na::Perspective3<f32>,
-    universe: &Universe
+    universe: &Universe,
 ) -> Option<[usize; 2]> {
+
+    let (width, height) = target.get_dimensions();
     let ray = na::Vector3::new(
         2.0 * mouse.x() as f32 / width as f32 - 1.0,
         1.0 - 2.0 * mouse.y() as f32 / height as f32,
@@ -55,23 +55,18 @@ pub fn mouse_projection(
     .to_homogeneous();
 
     let (u_width, u_height) = universe.dimensions();
-    
+
     let mut ray_eye = perspective.inverse() * ray;
     (ray_eye.z, ray_eye.w) = (-1.0, 0.0);
-    
-    let mut ray_world =
-    (camera.matrix.inverse().to_homogeneous() * ray_eye).xyz();
+
+    let mut ray_world = (camera.matrix.inverse().to_homogeneous() * ray_eye).xyz();
     ray_world.normalize_mut();
-    
+
     let t = -camera.position[2] / ray_world[2];
     let x = camera.position[0] + ray_world[0] * t + 0.5 + u_width as f32 / 2.0;
     let y = camera.position[1] + ray_world[1] * t + 0.5 + u_height as f32 / 2.0;
-    
-    if x >= 0.0
-    && y >= 0.0
-    && x < u_width as f32
-    && y < u_height as f32
-    {
+
+    if x >= 0.0 && y >= 0.0 && x < u_width as f32 && y < u_height as f32 {
         Some([x as usize, y as usize])
     } else {
         None
@@ -86,7 +81,6 @@ pub fn perspective_matrix(target: &impl glium::Surface) -> na::Perspective3<f32>
 pub fn model_matrix(roll: f32, pitch: f32, yaw: f32) -> na::Rotation3<f32> {
     na::Rotation3::from_euler_angles(roll, pitch, yaw)
 }
-
 
 pub fn vertex_shader() -> &'static str {
     r#"

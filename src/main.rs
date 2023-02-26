@@ -78,6 +78,7 @@ fn main() {
         },
         smooth: Some(glium::draw_parameters::Smooth::Fastest),
         blend: glium::draw_parameters::Blend::alpha_blending(),
+        backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
         ..Default::default()
     };
 

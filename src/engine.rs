@@ -68,7 +68,7 @@ impl Engine {
     }
 
     pub fn draw_state(&self) -> EngineDrawState {
-        return self.draw.state;
+        self.draw.state
     }
 
     pub fn start_drawing(&mut self) {

@@ -62,7 +62,7 @@ fn main() {
         
         implement_vertex!(Attr, alive, tick);
         
-        let data = (0..WIDTH * HEIGHT)
+        let data = (0..universe.size())
         .map(|_| Attr {
             alive: 1.0,
             tick: 1.0,
@@ -190,7 +190,7 @@ fn main() {
         
         {
             let mut mapping = per_instance.map();
-            for (id, attr) in (0..WIDTH * HEIGHT).zip(mapping.iter_mut()) {
+            for (id, attr) in (0..universe.size()).zip(mapping.iter_mut()) {
                 attr.alive = match universe.is_alive(id) {
                     true => 1.0,
                     false => 0.0,
@@ -205,7 +205,12 @@ fn main() {
             }
         }
         
-        target.clear_color_and_depth((0.0, 0.0, 0.4, 0.8), 1.0);
+        if engine.is_running() {
+            target.clear_color_and_depth((0.0, 0.0, 0.2, 0.8), 1.0);
+        }
+        else {
+            target.clear_color_and_depth((0.4, 0.0, 0.0, 0.8), 1.0);
+        }
         
         target
         .draw(
@@ -217,9 +222,9 @@ fn main() {
                 u_view: *camera.view_matrix().to_homogeneous().as_ref(),
                 u_perspective: *projection_matrix.to_homogeneous().as_ref(),
                 u_light: light,
-                u_height: HEIGHT as i32,
-                u_width: WIDTH as i32},
-                &params,
+                u_height: universe.height() as i32,
+                u_width: universe.width() as i32},
+                &params
             )
             .unwrap();
             target.finish().unwrap();

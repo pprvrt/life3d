@@ -9,14 +9,14 @@ pub enum CellState {
 
 #[derive(Clone, Copy)]
 pub struct Cell {
-    pub state: CellState,
-    pub changed: bool,
+    state: CellState,
+    changed: bool,
 }
 
 pub struct Universe {
-    pub width: usize,
-    pub height: usize,
-    pub cells: Vec<Cell>
+    width: usize,
+    height: usize,
+    cells: Vec<Cell>
 }
 
 impl fmt::Display for Universe {
@@ -37,6 +37,18 @@ impl fmt::Display for Universe {
 impl Universe {
     pub fn index(&self, cx: usize, cy: usize) -> usize {
         cy * self.width + cx
+    }
+
+    pub fn size(&self) -> usize {
+        self.width * self.height
+    }
+
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    pub fn height(&self) -> usize {
+        self.height
     }
 
     pub fn is_alive(&self, index: usize) -> bool {

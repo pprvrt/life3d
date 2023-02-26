@@ -329,7 +329,7 @@ fn main() {
             }
             
             /* It's a new dawn, it's a new day, it's new a life */
-            if engine.frame() == 0 {
+            if engine.is_first_frame() {
                 universe.step();
             }
         });

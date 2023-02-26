@@ -153,18 +153,17 @@ fn main() {
             },
             _ => return,
         }
+        let next_frame_time =
+            std::time::Instant::now() + std::time::Duration::from_nanos(16_666_667);
+        *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
 
         let mut target = display.draw();
         let (target_x, target_y) = target.get_dimensions();
 
-        t = (t + PI / 45.0) % (PI * 2.0);
-
         let model_matrix = model_matrix(t, t, t);
         let projection_matrix = perspective_matrix(&target);
 
-        let next_frame_time =
-            std::time::Instant::now() + std::time::Duration::from_nanos(16_666_667);
-        *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
+        t = (t + PI / 45.0) % (PI * 2.0);
 
         if engine.is_drawing() {
             /* Project the mouse 2D position into the 3D world */
@@ -183,6 +182,12 @@ fn main() {
             }
         }
 
+        if engine.is_running() {
+            target.clear_color_and_depth((0.0, 0.0, 0.2, 0.8), 1.0);
+        } else {
+            target.clear_color_and_depth((0.4, 0.0, 0.0, 0.8), 1.0);
+        }
+
         {
             let mut mapping = per_instance.map();
             for (id, attr) in (0..universe.size()).zip(mapping.iter_mut()) {
@@ -198,12 +203,6 @@ fn main() {
                     attr.tick = 1.0;
                 }
             }
-        }
-
-        if engine.is_running() {
-            target.clear_color_and_depth((0.0, 0.0, 0.2, 0.8), 1.0);
-        } else {
-            target.clear_color_and_depth((0.4, 0.0, 0.0, 0.8), 1.0);
         }
 
         target

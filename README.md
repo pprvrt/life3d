@@ -2,7 +2,7 @@
 
 Simple Conway's Game of Life in Rust with Glium.
 
-The goal of the project was to write and learn some Rust while learning a bit about how OpenGL concepts in the process, even though Glium hides a lot of its complexity. All the animations (cell rotation and colors) are carried out by the vertex and fragment shaders, while the game engine only prepares the model/view/perspective matrices.
+The goal of the project was to write and learn some Rust while learning a bit about OpenGL concepts in the process, even though Glium hides a lot of its complexity. All the animations (cell rotation and colors) are carried out by the vertex and fragment shaders, while the game engine only prepares the model/view/perspective matrices.
 
 The vertex shader applies a bouncing effect on nascent cells, and a smoothstep'ed scale down on dying cells, while the fragment shaders shows nascent cells as green, and dying cells as red, all while applying an overkill Phong shading. 
 

@@ -24,7 +24,7 @@ Cells can be drawn using the mouse. The mouse is raycasted to the 3D plan (z=0) 
 
 # Known issues
 
-On some Mac (M2?), it's been reported the program won't run and segfaults, something to be investigated at the Rust/glium level. Also, there are some performance issues on glium buffer memory mapping that takes a very long time on some computers, inducing dropped frames.
+Mac dropped support of OpenGL at 4.1 for Metal, but still, it should work. However on some Macs the program won't run and segfaults and I have yet to get a dump to understand why. Also on Mac Ventura w/OpenGL 2.1, some performance issues are seen where MapBufferRange/glMapBufferRange calls can be up to ~30ms(!) long for some reason that I need to dig into. Using persistent mapping is not a solution as it has to be OpenGL 4.4. 
 
 # Usage
 

@@ -62,6 +62,10 @@ impl Engine {
         }
     }
 
+    pub fn lifecycle(&self) -> u32 {
+        self.lifecycle
+    }
+
     pub fn set_mouse(&mut self, mx: u16, my: u16) {
         self.mouse.x = mx;
         self.mouse.y = my;

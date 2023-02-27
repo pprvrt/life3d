@@ -1,5 +1,3 @@
-extern crate tobj;
-
 #[derive(Copy, Clone)]
 pub struct Vertex {
     pub position: [f32; 3],
@@ -15,6 +13,7 @@ pub struct Model {
 }
 
 impl Model {
+    /* https://github.com/Twinklebear/tobj_viewer */
     pub fn from_obj(obj_file: &str) -> Model {
         let mut min_pos = [f32::INFINITY; 3];
         let mut max_pos = [f32::NEG_INFINITY; 3];

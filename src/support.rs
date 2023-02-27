@@ -1,9 +1,15 @@
-extern crate glium;
-extern crate nalgebra as na;
-
-use crate::engine::Mouse;
+use nalgebra as na;
+use crate::engine::{Mouse,Engine};
 use crate::universe::Universe;
 use std::f32::consts::PI;
+use glium::VertexBuffer;
+
+
+#[derive(Copy, Clone)]
+pub struct CellAttr {
+    pub alive: f32,
+    pub tick: f32,
+}
 
 pub struct Camera {
     position: [f32; 3],
@@ -80,6 +86,24 @@ pub fn perspective_matrix(target: &impl glium::Surface) -> na::Perspective3<f32>
 
 pub fn model_matrix(roll: f32, pitch: f32, yaw: f32) -> na::Rotation3<f32> {
     na::Rotation3::from_euler_angles(roll, pitch, yaw)
+}
+
+pub fn vertex_dynamic_attributes(per_instance: &mut VertexBuffer<CellAttr>, universe: &Universe, engine: &Engine)
+{
+    let mut mapping = per_instance.map();
+    for (id, attr) in (0..universe.size()).zip(mapping.iter_mut()) {
+        attr.alive = match universe.is_alive(id) {
+            true => 1.0,
+            false => 0.0,
+        };
+        if universe.has_changed(id) {
+            attr.tick = engine.frame() as f32 / engine.lifecycle() as f32;
+        } else {
+            /* We might have reset the universe in-between generations, we cannot
+             * assume that unchanged cells were fully alive or dead */
+            attr.tick = 1.0;
+        }
+    }
 }
 
 pub fn vertex_shader() -> &'static str {

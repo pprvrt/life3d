@@ -11,7 +11,7 @@ extern crate glium;
 use engine::{Engine, EngineEvent};
 use model::{Model, Vertex};
 use std::f32::consts::PI;
-use support::{model_matrix, mouse_projection, perspective_matrix, Camera};
+use support::{model_matrix, mouse_projection, perspective_matrix, Camera, CellAttr};
 use universe::Universe;
 
 // Width and height of Conway's universe
@@ -52,16 +52,10 @@ fn main() {
     .unwrap();
 
     let mut per_instance = {
-        #[derive(Copy, Clone)]
-        struct Attr {
-            alive: f32,
-            tick: f32,
-        }
-
-        implement_vertex!(Attr, alive, tick);
+        implement_vertex!(CellAttr, alive, tick);
 
         let data = (0..universe.size())
-            .map(|_| Attr {
+            .map(|_| CellAttr {
                 alive: 1.0,
                 tick: 1.0,
             })
@@ -187,22 +181,7 @@ fn main() {
             target.clear_color_and_depth((0.4, 0.0, 0.0, 0.8), 1.0);
         }
 
-        {
-            let mut mapping = per_instance.map();
-            for (id, attr) in (0..universe.size()).zip(mapping.iter_mut()) {
-                attr.alive = match universe.is_alive(id) {
-                    true => 1.0,
-                    false => 0.0,
-                };
-                if universe.has_changed(id) {
-                    attr.tick = engine.frame() as f32 / LIFECYCLE as f32;
-                } else {
-                    /* We might have reset the universe in-between generations, we cannot
-                     * assume that unchanged cells were fully alive or dead */
-                    attr.tick = 1.0;
-                }
-            }
-        }
+        support::vertex_dynamic_attributes(&mut per_instance, &universe, &engine);
 
         target
             .draw(

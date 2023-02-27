@@ -170,7 +170,7 @@ impl Engine {
             target.clear_color_and_depth((0.4, 0.0, 0.0, 0.8), 1.0);
         }
 
-        support::update_dynamic_attributes(per_instance, &universe, &self);
+        support::update_dynamic_attributes(per_instance, universe, self);
 
         /* Handle engine events instantly */
         match self.poll() {

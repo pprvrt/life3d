@@ -142,11 +142,11 @@ fn main() {
         let projection_matrix = support::perspective_matrix(&target);
 
         accumulator += now.elapsed().as_nanos();
+        now = std::time::Instant::now();
         while accumulator >= WAITFRAME as u128 {
             engine.step(&mut universe, &mut target, &camera, &projection_matrix, &mut per_instance);
             accumulator -= WAITFRAME as u128;
         }
-        now = std::time::Instant::now();
         let next_frame_time = now + std::time::Duration::from_nanos(WAITFRAME - accumulator as u64);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
         

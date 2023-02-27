@@ -22,6 +22,10 @@ The engine can be paused with `Space`. The background gets red and new generatio
 
 Cells can be drawn using the mouse. The mouse is raycasted to the 3D plan (z=0) on which the cells are drawn, following the principles explained on [Mouse Picking with Ray Casting](https://antongerdelan.net/opengl/raycasting.html).
 
+# Known issues
+
+On some Mac (M2?), it's been reported the program won't run and segfaults, something to be investigated at the Rust/glium level. Also, there are some performance issues on glium buffer memory mapping that takes a very long time on some computers, inducing dropped frames.
+
 # Usage
 
 `$ cargo run --release`

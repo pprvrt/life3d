@@ -20,6 +20,7 @@ const HEIGHT: usize = 60;
 const LIFECYCLE: u32 = 24;
 
 implement_vertex!(Vertex, position, normal, color);
+implement_vertex!(CellAttr, alive, tick);
 
 fn main() {
     use glium::{glutin, Surface};
@@ -50,10 +51,7 @@ fn main() {
     )
     .unwrap();
 
-    let mut per_instance = {
-        implement_vertex!(CellAttr, alive, tick);
-        support::init_dynamic_attributes(&display, &universe)
-    };
+    let mut per_instance = support::init_dynamic_attributes(&display, &universe);
 
     let params = glium::DrawParameters {
         depth: glium::Depth {

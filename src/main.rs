@@ -11,7 +11,6 @@ use support::{Camera, CellAttr};
 use universe::Universe;
 
 use glium::{implement_vertex, uniform};
-use std::f32::consts::PI;
 
 // Width and height of Conway's universe
 const WIDTH: usize = 60;
@@ -35,9 +34,6 @@ fn main() {
     let mut engine = Engine::new(LIFECYCLE);
     let mut universe = Universe::new(WIDTH, HEIGHT);
     universe.rand();
-
-    // Start with time at 0
-    let mut t: f32 = 0.0;
 
     // Load cube model from OBJ
     let cube = Model::from_obj("./resources/cube.obj");
@@ -142,35 +138,10 @@ fn main() {
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
 
         let mut target = display.draw();
-
-        let model_matrix = support::model_matrix(t, t, t);
+        let model_matrix = support::model_matrix(engine.t(), engine.t(), engine.t());
         let projection_matrix = support::perspective_matrix(&target);
 
-        t = (t + PI / 45.0) % (PI * 2.0);
-
-        if engine.is_drawing() {
-            /* Project the mouse 2D position into the 3D world */
-            if let Some([cx, cy]) = support::mouse_projection(
-                &target,
-                engine.mouse(),
-                &camera,
-                &projection_matrix,
-                &universe,
-            ) {
-                if !engine.just_drawn(cx as i32, cy as i32) {
-                    universe.toggle(cx, cy);
-                    engine.draw(cx as i32, cy as i32);
-                }
-            }
-        }
-
-        if engine.is_running() {
-            target.clear_color_and_depth((0.0, 0.0, 0.2, 0.8), 1.0);
-        } else {
-            target.clear_color_and_depth((0.4, 0.0, 0.0, 0.8), 1.0);
-        }
-
-        support::update_dynamic_attributes(&mut per_instance, &universe, &engine);
+        engine.step(&mut universe, &mut target, &camera, &projection_matrix, &mut per_instance);
 
         target
             .draw(
@@ -188,29 +159,5 @@ fn main() {
             )
             .unwrap();
         target.finish().unwrap();
-
-        /* Handle engine events instantly */
-        match engine.poll() {
-            EngineEvent::Randomize => {
-                universe.rand();
-                engine.reset();
-            }
-            EngineEvent::Clear => {
-                universe.clear();
-                engine.reset();
-            }
-            _ => (),
-        }
-
-        /* If the engine is running, progress. If not, wait until
-        the end of a generation to pause */
-        if engine.is_running() || !engine.is_last_frame() {
-            engine.step();
-        }
-
-        /* It's a new dawn, it's a new day, it's new a life */
-        if engine.is_first_frame() {
-            universe.step();
-        }
     });
 }

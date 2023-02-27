@@ -15,7 +15,7 @@ pub struct Camera {
     position: [f32; 3],
     direction: [f32; 3],
     up: [f32; 3],
-    matrix: na::Isometry3<f32>,
+    view: na::Isometry3<f32>
 }
 
 impl Camera {
@@ -35,12 +35,12 @@ impl Camera {
             position,
             direction,
             up,
-            matrix: Camera::build_matrix(&position, &direction, &up),
+            view: Camera::build_matrix(&position, &direction, &up),
         }
     }
 
     pub fn view_matrix(&self) -> &na::Isometry3<f32> {
-        &self.matrix
+        &self.view
     }
 }
 
@@ -65,7 +65,7 @@ pub fn mouse_projection(
     let mut ray_eye = perspective.inverse() * ray;
     (ray_eye.z, ray_eye.w) = (-1.0, 0.0);
 
-    let mut ray_world = (camera.matrix.inverse().to_homogeneous() * ray_eye).xyz();
+    let mut ray_world = (camera.view.inverse().to_homogeneous() * ray_eye).xyz();
     ray_world.normalize_mut();
 
     let t = -camera.position[2] / ray_world[2];

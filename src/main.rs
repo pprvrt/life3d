@@ -147,7 +147,7 @@ fn main() {
             accumulator -= WAITFRAME as u128;
         }
         now = std::time::Instant::now();
-        let next_frame_time = now + std::time::Duration::from_nanos(2*WAITFRAME - accumulator as u64);
+        let next_frame_time = now + std::time::Duration::from_nanos(WAITFRAME - accumulator as u64);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
         
         target

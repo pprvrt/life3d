@@ -88,7 +88,18 @@ pub fn model_matrix(roll: f32, pitch: f32, yaw: f32) -> na::Rotation3<f32> {
     na::Rotation3::from_euler_angles(roll, pitch, yaw)
 }
 
-pub fn vertex_dynamic_attributes(per_instance: &mut VertexBuffer<CellAttr>, universe: &Universe, engine: &Engine)
+pub fn init_dynamic_attributes(display: &glium::backend::glutin::Display, universe: &Universe) -> VertexBuffer<CellAttr>
+{
+    let data = (0..universe.size())
+    .map(|_| CellAttr {
+        alive: 1.0,
+        tick: 1.0,
+    })
+    .collect::<Vec<_>>();
+    glium::vertex::VertexBuffer::dynamic(display, &data).unwrap()
+}
+
+pub fn update_dynamic_attributes(per_instance: &mut VertexBuffer<CellAttr>, universe: &Universe, engine: &Engine)
 {
     let mut mapping = per_instance.map();
     for (id, attr) in (0..universe.size()).zip(mapping.iter_mut()) {

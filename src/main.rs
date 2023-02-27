@@ -5,14 +5,13 @@ mod model;
 mod support;
 mod universe;
 
-#[macro_use]
-extern crate glium;
-
 use engine::{Engine, EngineEvent};
 use model::{Model, Vertex};
-use std::f32::consts::PI;
-use support::{model_matrix, mouse_projection, perspective_matrix, Camera, CellAttr};
+use support::{Camera, CellAttr};
 use universe::Universe;
+
+use glium::{implement_vertex, uniform};
+use std::f32::consts::PI;
 
 // Width and height of Conway's universe
 const WIDTH: usize = 60;
@@ -53,15 +52,7 @@ fn main() {
 
     let mut per_instance = {
         implement_vertex!(CellAttr, alive, tick);
-
-        let data = (0..universe.size())
-            .map(|_| CellAttr {
-                alive: 1.0,
-                tick: 1.0,
-            })
-            .collect::<Vec<_>>();
-
-        glium::vertex::VertexBuffer::dynamic(&display, &data).unwrap()
+        support::init_dynamic_attributes(&display, &universe)
     };
 
     let params = glium::DrawParameters {
@@ -154,14 +145,14 @@ fn main() {
 
         let mut target = display.draw();
 
-        let model_matrix = model_matrix(t, t, t);
-        let projection_matrix = perspective_matrix(&target);
+        let model_matrix = support::model_matrix(t, t, t);
+        let projection_matrix = support::perspective_matrix(&target);
 
         t = (t + PI / 45.0) % (PI * 2.0);
 
         if engine.is_drawing() {
             /* Project the mouse 2D position into the 3D world */
-            if let Some([cx, cy]) = mouse_projection(
+            if let Some([cx, cy]) = support::mouse_projection(
                 &target,
                 engine.mouse(),
                 &camera,
@@ -181,7 +172,7 @@ fn main() {
             target.clear_color_and_depth((0.4, 0.0, 0.0, 0.8), 1.0);
         }
 
-        support::vertex_dynamic_attributes(&mut per_instance, &universe, &engine);
+        support::update_dynamic_attributes(&mut per_instance, &universe, &engine);
 
         target
             .draw(

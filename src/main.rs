@@ -17,6 +17,7 @@ const WIDTH: usize = 60;
 const HEIGHT: usize = 60;
 // Number of cycles before a new generation
 const LIFECYCLE: u32 = 24;
+const WAITFRAME: u64 = 16_666_667;
 
 implement_vertex!(Vertex, position, normal, color);
 implement_vertex!(CellAttr, alive, tick);
@@ -74,6 +75,8 @@ fn main() {
 
     /* Camera */
     let camera = Camera::new([0.0, 0.0, -25.0], [0.0, 8.0, 1.0], [0.0, 1.0, 0.0]);
+    let mut now = std::time::Instant::now();
+    let mut accumulator: u128 = 0;
 
     event_loop.run(move |ev, _, control_flow| {
         match ev {
@@ -133,16 +136,20 @@ fn main() {
             },
             _ => return,
         }
-        let next_frame_time =
-            std::time::Instant::now() + std::time::Duration::from_nanos(16_666_667);
-        *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
 
         let mut target = display.draw();
         let model_matrix = support::model_matrix(engine.t(), engine.t(), engine.t());
         let projection_matrix = support::perspective_matrix(&target);
 
-        engine.step(&mut universe, &mut target, &camera, &projection_matrix, &mut per_instance);
-
+        accumulator += now.elapsed().as_nanos();
+        while accumulator >= WAITFRAME as u128 {
+            engine.step(&mut universe, &mut target, &camera, &projection_matrix, &mut per_instance);
+            accumulator -= WAITFRAME as u128;
+        }
+        now = std::time::Instant::now();
+        let next_frame_time = now + std::time::Duration::from_nanos(2*WAITFRAME - accumulator as u64);
+        *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
+        
         target
             .draw(
                 (&vertex_buffer, per_instance.per_instance().unwrap()),

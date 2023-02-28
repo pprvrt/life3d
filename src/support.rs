@@ -121,7 +121,7 @@ pub fn update_dynamic_attributes(per_instance: &mut VertexBuffer<CellAttr>, univ
 
 pub fn vertex_shader() -> &'static str {
     r#"
-    #version 140
+    #version 150
     
     in vec3 position;
     in vec3 normal;

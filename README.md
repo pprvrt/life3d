@@ -24,7 +24,7 @@ Cells can be drawn using the mouse. The mouse is raycasted to the 3D plan (z=0) 
 
 # Known issues&ramblings
 
-Mac dropped support of OpenGL at 4.1 for Metal, but still, it should work. However on some Macs the program won't run and segfaults and I have yet to get a dump to understand why. Also on Mac Ventura w/OpenGL 2.1, some performance issues are seen where MapBufferRange/glMapBufferRange calls can be up to ~30ms(!) long for some reason that would need to be investigated. Using persistent mapping, which seems clever, is not a solution as it requires OpenGL 4.4. 
+Mac dropped support of OpenGL at 4.1 for Metal, but still, it should work. However on some Macs the program won't run and segfaults and I have yet to get a dump to understand why. 
 
 Also found an interesting behaviour that requires some digging, where vertex shader GLSL code `mod(gl_InstanceID, u_width)` would somehow return `u_width`. Fixed it by replacing the modulo code by `gl_InstanceID - u_width*floor(gl_InstanceID/u_width)` which is supposedly how mod() is implemented in the first place.
 

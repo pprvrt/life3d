@@ -57,7 +57,6 @@ fn main() {
             ..Default::default()
         },
         smooth: Some(glium::draw_parameters::Smooth::Fastest),
-        blend: glium::draw_parameters::Blend::alpha_blending(),
         backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
         ..Default::default()
     };
@@ -149,6 +148,7 @@ fn main() {
         }
         let next_frame_time = now + std::time::Duration::from_nanos(WAITFRAME - accumulator as u64);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
+        
         target
             .draw(
                 (&vertex_buffer, per_instance.per_instance().unwrap()),

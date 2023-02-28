@@ -101,25 +101,27 @@ pub fn init_dynamic_attributes(display: &glium::backend::glutin::Display, univer
 
 pub fn update_dynamic_attributes(per_instance: &mut VertexBuffer<CellAttr>, universe: &Universe, engine: &Engine)
 {
-    let mut mapping = per_instance.map();
-    for (id, attr) in (0..universe.size()).zip(mapping.iter_mut()) {
-        attr.alive = match universe.is_alive(id) {
-            true => 1.0,
-            false => 0.0,
-        };
-        if universe.has_changed(id) {
-            attr.tick = engine.frame() as f32 / engine.lifecycle() as f32;
-        } else {
-            /* We might have reset the universe in-between generations, we cannot
-             * assume that unchanged cells were fully alive or dead */
-            attr.tick = 1.0;
-        }
+    let mut mapping = per_instance.map_write();
+    for id in 0..universe.size() {
+        mapping.set(id, CellAttr {
+            alive: match universe.is_alive(id) {
+                true => 1.0,
+                false => 0.0,
+            },
+            tick: if universe.has_changed(id) {
+                engine.frame() as f32 / engine.lifecycle() as f32
+            } else {
+                /* We might have reset the universe in-between generations, we cannot
+                 * assume that unchanged cells were fully alive or dead */
+                1.0
+            }
+        });        
     }
 }
 
 pub fn vertex_shader() -> &'static str {
     r#"
-    #version 150
+    #version 140
     
     in vec3 position;
     in vec3 normal;
@@ -136,10 +138,7 @@ pub fn vertex_shader() -> &'static str {
     uniform mat4 u_model;
     uniform int u_width;
     uniform int u_height;
-    
-    vec4 instance = vec4(gl_InstanceID - u_width*floor(gl_InstanceID/u_width) - float(u_width)/2.0,
-    float(gl_InstanceID/u_width) - float(u_height)/2.0, 0, 0);
-    
+
     /* https://github.com/glslify/glsl-easings/blob/master/bounce-out.glsl */
     float bounceOut(float t) {
         const float a = 4.0 / 11.0;
@@ -163,14 +162,17 @@ pub fn vertex_shader() -> &'static str {
         : 10.8 * t * t - 20.52 * t + 10.72;
     }
     
-    float wobble = alive*bounceOut(tick*1.2) + (1.0-alive)*(1-smoothstep(0.0,0.5,tick));
-    
     void main() {
         v_alive = alive;
         v_tick = tick;
-        
+
         /* Transform normal vector with model transformation matrix */
         v_normal = transpose(inverse(mat3(u_model))) * normal;
+    
+        vec4 instance = vec4(gl_InstanceID - u_width*floor(gl_InstanceID/u_width) - float(u_width)/2.0,
+            float(gl_InstanceID/u_width) - float(u_height)/2.0, 0, 0);
+        float wobble = alive*bounceOut(tick*1.2) + (1.0-alive)*(1-smoothstep(0.0,0.5,tick));
+
         /* Transform the instance according to the wobble birth&death effect */
         vec4 origin = u_model * vec4(position * wobble, 1);
         /* Move the instance on the grid, apply camera transformation and perspective transformation */
@@ -182,7 +184,7 @@ pub fn vertex_shader() -> &'static str {
 
 pub fn fragment_shader() -> &'static str {
     r#"
-    #version 150
+    #version 130
     
     in float v_alive;
     in float v_tick;

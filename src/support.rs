@@ -184,7 +184,7 @@ pub fn vertex_shader() -> &'static str {
 
 pub fn fragment_shader() -> &'static str {
     r#"
-    #version 130
+    #version 150
     
     in float v_alive;
     in float v_tick;

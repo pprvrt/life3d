@@ -53,24 +53,24 @@ pub fn mouse_projection(
 ) -> Option<[usize; 2]> {
 
     let (width, height) = target.get_dimensions();
-    let ray = na::Vector3::new(
+    let ray_clip = na::Vector4::new(
         2.0 * mouse.x() as f32 / width as f32 - 1.0,
         1.0 - 2.0 * mouse.y() as f32 / height as f32,
-        0.0,
-    )
-    .to_homogeneous();
+        -1.0,
+        1.0
+    );
 
     let (u_width, u_height) = universe.dimensions();
 
-    let mut ray_eye = perspective.inverse() * ray;
+    let mut ray_eye = perspective.inverse() * ray_clip;
     (ray_eye.z, ray_eye.w) = (-1.0, 0.0);
 
     let mut ray_world = (camera.view.inverse().to_homogeneous() * ray_eye).xyz();
     ray_world.normalize_mut();
 
     let t = -camera.position[2] / ray_world[2];
-    let x = camera.position[0] + ray_world[0] * t + 0.5 + u_width as f32 / 2.0;
-    let y = camera.position[1] + ray_world[1] * t + 0.5 + u_height as f32 / 2.0;
+    let x = camera.position[0] + ray_world[0] * t + u_width as f32 / 2.0 + 0.5;
+    let y = camera.position[1] + ray_world[1] * t + u_height as f32 / 2.0 + 0.5;
 
     if x >= 0.0 && y >= 0.0 && x < u_width as f32 && y < u_height as f32 {
         Some([x as usize, y as usize])
@@ -137,7 +137,7 @@ pub fn vertex_shader() -> &'static str {
     uniform int u_width;
     uniform int u_height;
     
-    vec4 instance = vec4(float(mod(gl_InstanceID, u_width)) - float(u_width)/2.0,
+    vec4 instance = vec4(gl_InstanceID - u_width*floor(gl_InstanceID/u_width) - float(u_width)/2.0,
     float(gl_InstanceID/u_width) - float(u_height)/2.0, 0, 0);
     
     /* https://github.com/glslify/glsl-easings/blob/master/bounce-out.glsl */

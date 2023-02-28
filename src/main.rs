@@ -71,10 +71,10 @@ fn main() {
     .unwrap();
 
     /* Light source */
-    let light = [-1.0, 0.4, -0.9f32];
+    let light = [-1.0, 0.4, 0.9f32];
 
     /* Camera */
-    let camera = Camera::new([0.0, 0.0, -25.0], [0.0, 8.0, 1.0], [0.0, 1.0, 0.0]);
+    let camera = Camera::new([0.0, 0.0, 25.0], [0.0, 8.0, -1.0], [0.0, 1.0, 0.0]);
     let mut now = std::time::Instant::now();
     let mut accumulator: u128 = 0;
 
@@ -149,7 +149,6 @@ fn main() {
         }
         let next_frame_time = now + std::time::Duration::from_nanos(WAITFRAME - accumulator as u64);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
-        
         target
             .draw(
                 (&vertex_buffer, per_instance.per_instance().unwrap()),
@@ -160,8 +159,8 @@ fn main() {
                 u_view: *camera.view_matrix().to_homogeneous().as_ref(),
                 u_perspective: *projection_matrix.to_homogeneous().as_ref(),
                 u_light: light,
-                u_height: universe.height() as i32,
-                u_width: universe.width() as i32},
+                u_width: universe.width() as i32,
+                u_height: universe.height() as i32},
                 &params,
             )
             .unwrap();

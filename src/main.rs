@@ -76,7 +76,6 @@ fn main() {
     let mut camera = Camera::new([0.0, 0.0, 25.0], [0.0, 8.0, -1.0], [0.0, 1.0, 0.0]);
     let mut now = std::time::Instant::now();
     let mut accumulator: u128 = 0;
-    camera.shift(40.0);
 
     event_loop.run(move |ev, _, control_flow| {
         match ev {

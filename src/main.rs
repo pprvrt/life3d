@@ -70,7 +70,7 @@ fn main() {
     .unwrap();
 
     /* Light source */
-    let light = [-1.0, 0.4, 0.9f32];
+    let light = [0.0, 0.0, 10f32];
 
     /* Camera */
     let mut camera = Camera::new([0.0, 0.0, 25.0], [0.0, 8.0, -1.0], [0.0, 1.0, 0.0]);

@@ -18,7 +18,7 @@ At the beginning of a generation, the universe brings to life new cells and kill
 
 During the lifecycle of a generation, the engine steps to animate their birth and death. When the engine frame counter reaches the end of a lifecycle, a new generation starts.
 
-The engine can be paused with `Space`. The background gets red and new generations are stopped until the engine is resumed. The engine can be resumed by pressing `Space` again. Pressing `R` will create a new random universe (p=0.5), and pressing `Del` will kill all existing cells -- both of these commands will reset the engine to a starting state.
+The engine can be paused with `Space`. The background gets red and new generations are stopped until the engine is resumed. The engine can be resumed by pressing `Space` again. Pressing `R` will create a new random universe (p=0.5), and pressing `Del` will kill all existing cells -- both of these commands will reset the engine to a starting state. Camera can be zoomed in and zoomed out with the mouse wheel.
 
 Cells can be drawn using the mouse. The mouse is raycasted to the 3D plan (z=0) on which the cells are drawn, following the principles explained on [Mouse Picking with Ray Casting](https://antongerdelan.net/opengl/raycasting.html).
 

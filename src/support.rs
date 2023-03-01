@@ -13,9 +13,12 @@ pub struct CellAttr {
 
 pub struct Camera {
     position: [f32; 3],
+    destination: [f32; 3],
     direction: [f32; 3],
+    velocity: [f32; 3],
     up: [f32; 3],
-    view: na::Isometry3<f32>
+    view: na::Isometry3<f32>,
+    dt: f32
 }
 
 impl Camera {
@@ -30,12 +33,39 @@ impl Camera {
         na::Isometry3::look_at_rh(&eye, &target, &up)
     }
 
+    pub fn shift(&mut self, z: f32) {
+        let mut dest_z = self.position[2] + z;
+        dest_z = f32::max(10.0, dest_z);
+        dest_z = f32::min(30.0, dest_z);
+        self.destination = [self.position[0], self.position[1], dest_z];
+        self.dt = 0.0;
+    }
+
+    pub fn step(&mut self) {
+        let freq = 0.05;
+
+        self.dt += 1.0f32;
+        let exp_term = f32::exp(-freq * self.dt);
+        let time_exp = self.dt * exp_term;
+        let time_exp_freq = time_exp * freq;
+
+        for i in 0..3 {
+            self.position[i] = (self.position[i] - self.destination[i]) * (time_exp_freq + exp_term) +
+                self.velocity[i] * time_exp + self.destination[i];
+            self.velocity[i] = (self.position[i] - self.destination[i]) * (-freq * time_exp_freq) +
+                self.velocity[i] * (-time_exp_freq + exp_term);
+        }
+        self.view = Camera::build_matrix(&self.position, &self.direction, &self.up);
+    }
     pub fn new(position: [f32; 3], direction: [f32; 3], up: [f32; 3]) -> Self {
         Camera {
             position,
             direction,
             up,
             view: Camera::build_matrix(&position, &direction, &up),
+            velocity: [0.0, 0.0, 0.0],
+            destination: position,
+            dt: 0.0
         }
     }
 

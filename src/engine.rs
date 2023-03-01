@@ -144,7 +144,7 @@ impl Engine {
         self.frame = (self.frame +1) % self.lifecycle;
     }
 
-    pub fn step(&mut self, universe: &mut Universe, target: &mut glium::Frame, camera: &support::Camera, projection_matrix: &Perspective3<f32>, per_instance: &mut glium::VertexBuffer<support::CellAttr>)    
+    pub fn step(&mut self, universe: &mut Universe, target: &mut glium::Frame, camera: &mut support::Camera, projection_matrix: &Perspective3<f32>, per_instance: &mut glium::VertexBuffer<support::CellAttr>)    
     {
         self.t = (self.t + PI / 45.0) % (PI * 2.0);
 
@@ -163,6 +163,8 @@ impl Engine {
                 }
             }
         }
+
+        camera.step();
 
         if self.is_running() {
             target.clear_color_and_depth((0.0, 0.0, 0.2, 0.8), 1.0);

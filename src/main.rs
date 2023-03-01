@@ -73,9 +73,10 @@ fn main() {
     let light = [-1.0, 0.4, 0.9f32];
 
     /* Camera */
-    let camera = Camera::new([0.0, 0.0, 25.0], [0.0, 8.0, -1.0], [0.0, 1.0, 0.0]);
+    let mut camera = Camera::new([0.0, 0.0, 25.0], [0.0, 8.0, -1.0], [0.0, 1.0, 0.0]);
     let mut now = std::time::Instant::now();
     let mut accumulator: u128 = 0;
+    camera.shift(40.0);
 
     event_loop.run(move |ev, _, control_flow| {
         match ev {
@@ -126,6 +127,16 @@ fn main() {
                     };
                     return;
                 }
+                event::WindowEvent::MouseWheel { delta, .. } => match delta {
+                    event::MouseScrollDelta::LineDelta(_, delta) => {
+                        camera.shift(-delta*20.0);
+                        return;
+                    }
+                    event::MouseScrollDelta::PixelDelta(pos) => {
+                        camera.shift(10.0 * pos.y as f32);
+                        return;
+                    }
+                },
                 _ => return,
             },
             event::Event::NewEvents(cause) => match cause {
@@ -143,12 +154,18 @@ fn main() {
         accumulator += now.elapsed().as_nanos();
         now = std::time::Instant::now();
         while accumulator >= WAITFRAME as u128 {
-            engine.step(&mut universe, &mut target, &camera, &projection_matrix, &mut per_instance);
+            engine.step(
+                &mut universe,
+                &mut target,
+                &mut camera,
+                &projection_matrix,
+                &mut per_instance,
+            );
             accumulator -= WAITFRAME as u128;
         }
         let next_frame_time = now + std::time::Duration::from_nanos(WAITFRAME - accumulator as u64);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
-        
+
         target
             .draw(
                 (&vertex_buffer, per_instance.per_instance().unwrap()),

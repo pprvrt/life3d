@@ -139,7 +139,7 @@ pub fn update_dynamic_attributes(per_instance: &mut VertexBuffer<CellAttr>, univ
                 false => 0.0,
             },
             tick: if universe.has_changed(id) {
-                engine.frame() as f32 / engine.lifecycle() as f32
+                f32::min(1.0, engine.frame() as f32 / (engine.lifecycle() - 1) as f32)
             } else {
                 /* We might have reset the universe in-between generations, we cannot
                  * assume that unchanged cells were fully alive or dead */

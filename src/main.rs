@@ -86,29 +86,32 @@ fn main() {
                 }
                 event::WindowEvent::KeyboardInput { input, .. } => match input {
                     event::KeyboardInput {
-                        virtual_keycode: Some(event::VirtualKeyCode::R),
+                        virtual_keycode,
                         state: event::ElementState::Pressed,
                         ..
-                    } => {
-                        engine.trigger(EngineEvent::Randomize);
-                        return;
-                    }
-                    event::KeyboardInput {
-                        virtual_keycode: Some(event::VirtualKeyCode::Delete),
-                        state: event::ElementState::Pressed,
-                        ..
-                    } => {
-                        engine.trigger(EngineEvent::Clear);
-                        return;
-                    }
-                    event::KeyboardInput {
-                        virtual_keycode: Some(event::VirtualKeyCode::Space),
-                        state: event::ElementState::Pressed,
-                        ..
-                    } => {
-                        engine.startstop();
-                        return;
-                    }
+                    } => match virtual_keycode {
+                        Some(event::VirtualKeyCode::R) => {
+                            engine.trigger(EngineEvent::Randomize);
+                            return
+                        }
+                        Some(event::VirtualKeyCode::Delete) => {
+                            engine.trigger(EngineEvent::Clear);
+                            return
+                        }
+                        Some(event::VirtualKeyCode::Space) => {
+                            engine.startstop();
+                            return
+                        }
+                        Some(event::VirtualKeyCode::Left) => {
+                            engine.change_lifecycle(2);
+                            return
+                        }
+                        Some(event::VirtualKeyCode::Right) => {
+                            engine.change_lifecycle(-2);
+                            return
+                        }
+                        _ => return,
+                    },
                     _ => return,
                 },
                 event::WindowEvent::CursorMoved { position, .. } => {
@@ -128,7 +131,7 @@ fn main() {
                 }
                 event::WindowEvent::MouseWheel { delta, .. } => match delta {
                     event::MouseScrollDelta::LineDelta(_, delta) => {
-                        camera.shift(-delta*20.0);
+                        camera.shift(-delta * 20.0);
                         return;
                     }
                     event::MouseScrollDelta::PixelDelta(pos) => {

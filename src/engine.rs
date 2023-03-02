@@ -1,9 +1,12 @@
 use nalgebra::Perspective3;
 
-use crate::universe::Universe;
 use crate::support;
+use crate::universe::Universe;
 use glium::Surface;
 use std::f32::consts::PI;
+
+const SHORTEST_LIFECYCLE: u32 = 2;
+const LONGEST_LIFECYCLE: u32 = 60;
 
 pub struct Mouse {
     x: u16,
@@ -51,7 +54,7 @@ pub struct Engine {
     mouse: Mouse,
     frame: u32,
     lifecycle: u32,
-    t: f32
+    t: f32,
 }
 
 impl Engine {
@@ -66,8 +69,8 @@ impl Engine {
             event: EngineEvent::None,
             mouse: Mouse { x: 0, y: 0 },
             frame: 0,
-            lifecycle,
-            t: 0.0
+            lifecycle: u32::min(u32::max(lifecycle, SHORTEST_LIFECYCLE), LONGEST_LIFECYCLE),
+            t: 0.0,
         }
     }
 
@@ -141,22 +144,30 @@ impl Engine {
     }
 
     pub fn next_frame(&mut self) {
-        self.frame = (self.frame +1) % self.lifecycle;
+        self.frame = (self.frame + 1) % self.lifecycle;
     }
 
-    pub fn step(&mut self, universe: &mut Universe, target: &mut glium::Frame, camera: &mut support::Camera, projection_matrix: &Perspective3<f32>, per_instance: &mut glium::VertexBuffer<support::CellAttr>)    
-    {
+    pub fn change_lifecycle(&mut self, delta: i32) {
+        let lifecycle = i32::max(self.lifecycle as i32 + delta, SHORTEST_LIFECYCLE as i32) as u32;
+        self.lifecycle = u32::min(lifecycle, LONGEST_LIFECYCLE);
+        self.frame = u32::min(self.frame, self.lifecycle - 1);
+    }
+
+    pub fn step(
+        &mut self,
+        universe: &mut Universe,
+        target: &mut glium::Frame,
+        camera: &mut support::Camera,
+        projection_matrix: &Perspective3<f32>,
+        per_instance: &mut glium::VertexBuffer<support::CellAttr>,
+    ) {
         self.t = (self.t + PI / 45.0) % (PI * 2.0);
 
         if self.is_drawing() {
             /* Project the mouse 2D position into the 3D world */
-            if let Some([cx, cy]) = support::mouse_projection(
-                target,
-                self.mouse(),
-                camera,
-                projection_matrix,
-                universe,
-            ) {
+            if let Some([cx, cy]) =
+                support::mouse_projection(target, self.mouse(), camera, projection_matrix, universe)
+            {
                 if !self.just_drawn(cx as i32, cy as i32) {
                     universe.toggle(cx, cy);
                     self.draw(cx as i32, cy as i32);
